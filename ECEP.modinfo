@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Mod id="4a5fe1c3-0b92-4dd6-8393-ee5536e65224" version="1.0">
+    <Properties>
+        <Name>LOC_ECEP_MOD_TITLE</Name>
+        <Teaser>LOC_ECEP_MOD_TEASER</Teaser>
+        <Description>LOC_ECEP_MOD_DESCRIPTION</Description>
+        <Authors>LOC_ECEP_MOD_AUTHORS</Authors>
+        <SpecialThanks>LOC_ECEP_MOD_SPECIALTHANKS</SpecialThanks>
+		<Stability>Beta</Stability>
+		<CompatibleVersions>2.0</CompatibleVersions>
+    </Properties>
+    <!-- <References>
+		<Mod id="1B28771A-C749-434B-9053-D1380C553DE9" title="LOC_EXPANSION1_MOD_TITLE"/>
+		<Mod id="4873eb62-8ccc-4574-b784-dda455e74e68" title="LOC_EXPANSION2_MOD_TITLE"/>
+		<Mod id="9DE86512-DE1A-400D-8C0A-AB46EBBF76B9" title="LOC_GRANCOLOMBIA_MAYA_MOD_TITLE"/>
+	</References> -->
+    <ActionCriteria>
+        <!-- all rulesets -->
+		<Criteria id="ECEP" any="1">
+			<RuleSetInUse>RULESET_STANDARD,RULESET_EXPANSION_1,RULESET_EXPANSION_2</RuleSetInUse>
+		</Criteria>
+		<!-- standard ruleset only -->
+		<!-- <Criteria id="ECEP_Base">
+			<RuleSetInUse>RULESET_STANDARD</RuleSetInUse>
+		</Criteria> -->
+		<!-- rise and fall ruleset only -->
+		<!-- <Criteria id="ECEP_Expansion1">
+			<RuleSetInUse>RULESET_EXPANSION_1</RuleSetInUse>
+		</Criteria> -->
+		<!-- any expansion ruleset -->
+		<!-- <Criteria id="ECEP_Expansion1AndBeyond" any="1">
+			<RuleSetInUse>RULESET_EXPANSION_1,RULESET_EXPANSION_2</RuleSetInUse>
+		</Criteria> -->
+		<!-- gathering storm ruleset only -->
+		<!-- <Criteria id="ECEP_Expansion2">
+			<RuleSetInUse>RULESET_EXPANSION_2</RuleSetInUse>
+		</Criteria> -->
+		<!-- Gran Colombia and Maya DLC present -->
+		<!-- <Criteria id="ECEP_GranColombia_Maya">
+			<ModInUse>9DE86512-DE1A-400D-8C0A-AB46EBBF76B9</ModInUse>
+		</Criteria> -->
+    </ActionCriteria>
+    <InGameActions>
+        <!-- ECEP gameplay script -->
+		<AddGameplayScripts id="ECEP_GAMEPLAY_SCRIPT" criteria="ECEP">
+			<Properties>
+        		<LoadOrder>1010149</LoadOrder>
+      		</Properties>
+			<File>ECEP/Scripts/ECEP.lua</File>
+		</AddGameplayScripts>
+    </InGameActions>
+    <LocalizedText>
+		<Text id="LOC_ECEP_MOD_TITLE">
+			<en_US>Enhanced Combat Experience and Promotions</en_US>
+			<es_ES>Experiencia y Promociones de Combate Mejoradas.</es_ES>
+			<fr_FR>Expérience et Promotions Renforcées de Combat</fr_FR>
+		</Text>
+		<Text id="LOC_ECEP_MOD_TEASER">
+			<en_US>Units receive combat experience even when they have (a) promotion(s) pending, which enables rudimentary banking of promotions.</en_US>
+			<es_ES>Las unidades reciben experiencia de combate incluso cuando tienen (a) promoción (s) pendientes, que permite la banca rudimentaria de promociones.</es_ES>
+			<fr_FR>Les unités reçoivent une expérience de combat même quand elles ont (a) la promotion (s) en attente, ce qui permet une banque rudimentaire des promotions.</fr_FR>
+		</Text>
+		<Text id="LOC_ECEP_MOD_DESCRIPTION">
+			<en_US>Allows a unit to receive a minimum amount of experience from combat even when it has (a) promotion(s) pending. Any such experience will be banked.[NEWLINE][NEWLINE]Upon promotion, any banked experience will be applied to the unit, up to the amount needed for its next promotion. Any banked experience beyond this amount will remain banked for the following promotion. While the unit has any experience banked, new experience from combat will be capped at the minimum amount, but will continue to accrue.</en_US>
+			<es_ES>Permite que una unidad reciba una cantidad mínima de experiencia de combate incluso cuando tiene (a) promoción (s) pendiente. Cualquier experiencia de este tipo estará en banca.[NEWLINE][NEWLINE]Tras la promoción, cualquier experiencia bancaria se aplicará a la unidad, hasta la cantidad necesaria para su próxima promoción. Cualquier experiencia bancaria más allá de esta cantidad permanecerá en banca para la siguiente promoción. Si bien la unidad tiene alguna experiencia en la banca, la nueva experiencia de combate se limitará a la cantidad mínima, pero continuará acumulándose.</es_ES>
+			<fr_FR>Permet à une unité de recevoir une quantité minimale d'expérience du combat même lorsqu'elle a (a) la (s) promotion (s) en attente. Une telle expérience sera en banque.[NEWLINE][NEWLINE]Lors de la promotion, toute expérience bancaire sera appliquée à l'unité, jusqu'au montant nécessaire pour sa prochaine promotion. Toute expérience bancaire au-delà de ce montant restera bancaire pour la promotion suivante. Bien que l'unité ait une expérience bancaire, une nouvelle expérience du combat sera plafonnée au minimum, mais continuera d'accumuler.</fr_FR>
+		</Text>
+		<Text id="LOC_ECEP_MOD_AUTHORS">
+			<en_US>zzragnar0kzz</en_US>
+			<es_ES>zzragnar0kzz</es_ES>
+			<fr_FR>zzragnar0kzz</fr_FR>
+		</Text>
+		<Text id="LOC_ECEP_MOD_SPECIALTHANKS">
+			<en_US>The Community</en_US>
+			<es_ES>La Comunidad</es_ES>
+			<fr_FR>La Communauté</fr_FR>
+		</Text>
+	</LocalizedText>
+	<Files>
+        <!-- ECEP gameplay script -->
+        <File>ECEP/Scripts/ECEP.lua</File>
+    </Files>
+</Mod>
