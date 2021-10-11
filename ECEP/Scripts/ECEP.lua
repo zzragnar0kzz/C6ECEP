@@ -58,7 +58,7 @@ function OnCombat( tCombatResult )
 		if not pAttacker.IsDead then 
 			-- player and unit IDs, and XP change for the attacker
 			local iPlayerID, iUnitID = pAttacker[CombatResultParameters.ID].player, pAttacker[CombatResultParameters.ID].id;
-			local iXP = (pAttacker[CombatResultParameters.EXPERIENCE_CHANGE] > iMinXP) and pAttacker[CombatResultParameters.EXPERIENCE_CHANGE] or iMinXP;
+			local iXP = (pAttacker[CombatResultParameters.EXPERIENCE_CHANGE] > 0) and pAttacker[CombatResultParameters.EXPERIENCE_CHANGE] or iMinXP;
 			-- attacking unit data
 			local pUnit = Players[iPlayerID]:GetUnits():FindID(iUnitID);
 			-- true when attacking unit data exists
@@ -69,18 +69,23 @@ function OnCombat( tCombatResult )
                 if (pUnitExperience ~= nil) then 
 	    	    	-- attacking unit's current XP and XPFNL
     	    		local iCurrentXP, iXPFNL = pUnitExperience:GetExperiencePoints(), pUnitExperience:GetExperienceForNextLevel();
-	    		    -- attacking unit's XP balance and last known current XP total
+	    		    -- attacking unit's current XP balance and last known current XP total
     		    	local iBalanceXP = (pUnit:GetProperty("XP_BALANCE") ~= nil) and pUnit:GetProperty("XP_BALANCE") or 0;
 	    		    local iLastCurrentXP = (pUnit:GetProperty("LAST_CURRENT_XP") ~= nil) and pUnit:GetProperty("LAST_CURRENT_XP") or 0;
-    		    	-- bank experience when the attacking unit has any promotion(s) pending
-		    	    if ((iLastCurrentXP + iXP) > iXPFNL) then iBalanceXP = iBalanceXP + ((iLastCurrentXP + iXP) - iXPFNL); end
+                    -- attacking unit's new XP balance and amount of XP to be banked
+                    local iNewBalanceXP = ((iLastCurrentXP + iXP) > iXPFNL) and iBalanceXP + ((iLastCurrentXP + iXP) - iXPFNL) or iBalanceXP;
+                    local iBankXP = (iNewBalanceXP ~= iBalanceXP) and iNewBalanceXP - iBalanceXP or 0;
 	    	    	-- reset the attacking unit's XP balance and last known current XP total properties to the new values
-    	    		pUnit:SetProperty("XP_BALANCE", iBalanceXP);
+    	    		pUnit:SetProperty("XP_BALANCE", iNewBalanceXP);
     			    pUnit:SetProperty("LAST_CURRENT_XP", iCurrentXP);
 			        -- debugging output
 		        	local sPriAttMsg = "Player " .. iPlayerID .. ": Attacking Unit " .. iUnitID .. " survived, earning " .. iXP .. " combat experience";
-	        		local sSecAttMsg = " (" .. iLastCurrentXP .. " --> " .. iCurrentXP .. " XP / " .. iXPFNL .. " FNL, " .. iBalanceXP .. " XP balance)";
+	        		local sSecAttMsg = " (" .. iLastCurrentXP .. " --> " .. iCurrentXP .. " XP / " .. iXPFNL .. " FNL, balance " .. iBalanceXP .. " --> " .. iNewBalanceXP .. " XP)";
         			Dprint(sF, sPriAttMsg .. sSecAttMsg);
+                    -- popup text to indicate how much, if any, experience was banked
+                    if iBankXP > 0 and Players[iPlayerID]:IsHuman() then 
+                        Game.AddWorldViewText(iPlayerID, Locale.Lookup("[COLOR_LIGHTBLUE] + {1_XP} XP stored pending promotion [ENDCOLOR]", iBankXP), iX, iY, 0);
+                    end
                 end
             end
 		end
@@ -93,7 +98,7 @@ function OnCombat( tCombatResult )
 		if not pDefender.IsDead then 
 			-- player and unit IDs, and XP change for the defender
 			local iPlayerID, iUnitID = pDefender[CombatResultParameters.ID].player, pDefender[CombatResultParameters.ID].id;
-			local iXP = (pDefender[CombatResultParameters.EXPERIENCE_CHANGE] > iMinXP) and pDefender[CombatResultParameters.EXPERIENCE_CHANGE] or iMinXP;
+			local iXP = (pDefender[CombatResultParameters.EXPERIENCE_CHANGE] > 0) and pDefender[CombatResultParameters.EXPERIENCE_CHANGE] or iMinXP;
 			-- defending unit data
 			local pUnit = Players[iPlayerID]:GetUnits():FindID(iUnitID);
 			-- true when defending unit data exists
@@ -104,18 +109,23 @@ function OnCombat( tCombatResult )
                 if (pUnitExperience ~= nil) then 
 	    	    	-- defending unit's current XP and XPFNL
     	    		local iCurrentXP, iXPFNL = pUnitExperience:GetExperiencePoints(), pUnitExperience:GetExperienceForNextLevel();
-	    		    -- defending unit's XP balance and last known current XP total
+	    		    -- defending unit's current XP balance and last known current XP total
     		    	local iBalanceXP = (pUnit:GetProperty("XP_BALANCE") ~= nil) and pUnit:GetProperty("XP_BALANCE") or 0;
 	    		    local iLastCurrentXP = (pUnit:GetProperty("LAST_CURRENT_XP") ~= nil) and pUnit:GetProperty("LAST_CURRENT_XP") or 0;
-    		    	-- bank experience when the defending unit has any promotion(s) pending
-		    	    if ((iLastCurrentXP + iXP) > iXPFNL) then iBalanceXP = iBalanceXP + ((iLastCurrentXP + iXP) - iXPFNL); end
+                    -- defending unit's new XP balance and amount of XP to be banked
+                    local iNewBalanceXP = ((iLastCurrentXP + iXP) > iXPFNL) and iBalanceXP + ((iLastCurrentXP + iXP) - iXPFNL) or iBalanceXP;
+                    local iBankXP = (iNewBalanceXP ~= iBalanceXP) and iNewBalanceXP - iBalanceXP or 0;
 	    	    	-- reset the defending unit's XP balance and last known current XP total properties to the new values
-    	    		pUnit:SetProperty("XP_BALANCE", iBalanceXP);
+    	    		pUnit:SetProperty("XP_BALANCE", iNewBalanceXP);
     			    pUnit:SetProperty("LAST_CURRENT_XP", iCurrentXP);
 			        -- debugging output
 		        	local sPriAttMsg = "Player " .. iPlayerID .. ": Defending Unit " .. iUnitID .. " survived, earning " .. iXP .. " combat experience";
-	        		local sSecAttMsg = " (" .. iLastCurrentXP .. " --> " .. iCurrentXP .. " XP / " .. iXPFNL .. " FNL, " .. iBalanceXP .. " XP balance)";
+	        		local sSecAttMsg = " (" .. iLastCurrentXP .. " --> " .. iCurrentXP .. " XP / " .. iXPFNL .. " FNL, balance " .. iBalanceXP .. " --> " .. iNewBalanceXP .. " XP)";
         			Dprint(sF, sPriAttMsg .. sSecAttMsg);
+                    -- popup text to indicate how much, if any, experience was banked
+                    if iBankXP > 0 and Players[iPlayerID]:IsHuman() then 
+                        Game.AddWorldViewText(iPlayerID, Locale.Lookup("[COLOR_LIGHTBLUE] + {1_XP} XP stored pending promotion [ENDCOLOR]", iBankXP), iX, iY, 0);
+                    end
                 end
             end
 		end

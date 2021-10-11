@@ -20,21 +20,21 @@
 			<RuleSetInUse>RULESET_STANDARD,RULESET_EXPANSION_1,RULESET_EXPANSION_2</RuleSetInUse>
 		</Criteria>
 		<!-- standard ruleset only -->
-		<!-- <Criteria id="ECEP_Base">
+		<Criteria id="ECEP_Base">
 			<RuleSetInUse>RULESET_STANDARD</RuleSetInUse>
-		</Criteria> -->
+		</Criteria>
 		<!-- rise and fall ruleset only -->
-		<!-- <Criteria id="ECEP_Expansion1">
+		<Criteria id="ECEP_Expansion1">
 			<RuleSetInUse>RULESET_EXPANSION_1</RuleSetInUse>
-		</Criteria> -->
+		</Criteria>
 		<!-- any expansion ruleset -->
 		<!-- <Criteria id="ECEP_Expansion1AndBeyond" any="1">
 			<RuleSetInUse>RULESET_EXPANSION_1,RULESET_EXPANSION_2</RuleSetInUse>
 		</Criteria> -->
 		<!-- gathering storm ruleset only -->
-		<!-- <Criteria id="ECEP_Expansion2">
+		<Criteria id="ECEP_Expansion2">
 			<RuleSetInUse>RULESET_EXPANSION_2</RuleSetInUse>
-		</Criteria> -->
+		</Criteria>
 		<!-- Gran Colombia and Maya DLC present -->
 		<!-- <Criteria id="ECEP_GranColombia_Maya">
 			<ModInUse>9DE86512-DE1A-400D-8C0A-AB46EBBF76B9</ModInUse>
@@ -48,6 +48,36 @@
       		</Properties>
 			<File>ECEP/Scripts/ECEP.lua</File>
 		</AddGameplayScripts>
+        <!-- ECEP base unit panel -->
+        <ReplaceUIScript id="ECEP_UnitPanel" criteria="ECEP_Base">
+			<Properties>
+                <LoadOrder>1010149</LoadOrder>
+				<LuaContext>UnitPanel</LuaContext>
+				<LuaReplace>ECEP/UI/Replacements/UnitPanel_ECEP.lua</LuaReplace>
+			</Properties>
+		</ReplaceUIScript>
+        <!-- ECEP XP1 unit panel -->
+        <ReplaceUIScript id="ECEP_Expansion1_UnitPanel" criteria="ECEP_Expansion1">
+			<Properties>
+                <LoadOrder>1010149</LoadOrder>
+				<LuaContext>UnitPanel</LuaContext>
+				<LuaReplace>ECEP/UI/Replacements/UnitPanel_ECEP_Expansion1.lua</LuaReplace>
+			</Properties>
+		</ReplaceUIScript>
+        <!-- ECEP XP2 unit panel -->
+        <ReplaceUIScript id="ECEP_Expansion2_UnitPanel" criteria="ECEP_Expansion2">
+			<Properties>
+                <LoadOrder>1010149</LoadOrder>
+				<LuaContext>UnitPanel</LuaContext>
+				<LuaReplace>ECEP/UI/Replacements/UnitPanel_ECEP_Expansion2.lua</LuaReplace>
+			</Properties>
+		</ReplaceUIScript>
+        <ImportFiles id="ECEP_Files" criteria="ECEP">
+            <!-- ECEP unit panel files -->
+            <File>ECEP/UI/Replacements/UnitPanel_ECEP.lua</File>
+            <File>ECEP/UI/Replacements/UnitPanel_ECEP_Expansion1.lua</File>
+            <File>ECEP/UI/Replacements/UnitPanel_ECEP_Expansion2.lua</File>
+        </ImportFiles>
     </InGameActions>
     <LocalizedText>
 		<Text id="LOC_ECEP_MOD_TITLE">
@@ -79,5 +109,9 @@
 	<Files>
         <!-- ECEP gameplay script -->
         <File>ECEP/Scripts/ECEP.lua</File>
+        <!-- ECEP unit panel files -->
+        <File>ECEP/UI/Replacements/UnitPanel_ECEP.lua</File>
+        <File>ECEP/UI/Replacements/UnitPanel_ECEP_Expansion1.lua</File>
+        <File>ECEP/UI/Replacements/UnitPanel_ECEP_Expansion2.lua</File>
     </Files>
 </Mod>

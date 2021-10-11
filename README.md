@@ -1,7 +1,11 @@
 # Enhanced Combat Experience and Promotions for Civilization VI
+![ECEP Ingame](/IMAGES/ECEP_Ingame.png)
+
 A mod that allows a unit to receive a minimum amount of experience from combat even when it has (a) promotion(s) pending. Any such experience will be banked.
 
 Upon promotion, any banked experience will be applied to the unit, up to the amount needed for its next promotion. Any banked experience beyond this amount will remain banked for the following promotion. While the unit has any experience banked, new experience from combat will be capped at the minimum amount, but will continue to accrue.
+
+Ingame world-view text indicating the amount of experience banked from a particular combat will appear alongside or instead of the world-view text indicating the total amount of experience earned from a particular combat. Additionally, units with banked experience will reflect the total amount banked alongside other stats in the XP area of the Unit panel.
 
 Experience earned from sources other than actual combat will be ignored by this mod.
 
