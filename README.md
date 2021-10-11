@@ -61,5 +61,11 @@ ECEP employs the following new custom gameplay scripts:
 
 If your mod employs any gameplay scripts with similar names, conflicts __WILL__ arise.
 
+### UI Context
+ECEP employs customized versions of the following ingame UI context files for all rulesets:
+- UnitPanel
+
+If your mod employs custom versions of any of these UI context files, conflicts __WILL__ arise.
+
 # Special Thanks
 To the greater community.
