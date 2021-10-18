@@ -40,7 +40,12 @@ end
 =========================================================================== ]]
 function ReadCustomUnitStats( pUnit:table, kSubjectData:table )	
 	kSubjectData = BASE_ReadCustomUnitStats(pUnit, kSubjectData );
-	kSubjectData.ExperienceBalance = pUnit:GetProperty("XP_BALANCE");
+	local iXPBalance = pUnit:GetProperty("XP_BALANCE");
+	if iXPBalance == nil then 
+		iXPBalance = 0;
+		-- pUnit:SetProperty("XP_BALANCE", iXPBalance);
+	end
+	kSubjectData.ExperienceBalance = iXPBalance;
 	if GameInfo.Units[kSubjectData.UnitType].UnitType == "UNIT_ROCK_BAND" then 
 		kSubjectData.IsRockbandUnit = true;
 		kSubjectData.RockBandLevel	= pUnit:GetRockBand():GetRockBandLevel();

@@ -9,11 +9,11 @@
 		<Stability>Beta</Stability>
 		<CompatibleVersions>2.0</CompatibleVersions>
     </Properties>
-    <!-- <References>
+    <References>
 		<Mod id="1B28771A-C749-434B-9053-D1380C553DE9" title="LOC_EXPANSION1_MOD_TITLE"/>
 		<Mod id="4873eb62-8ccc-4574-b784-dda455e74e68" title="LOC_EXPANSION2_MOD_TITLE"/>
 		<Mod id="9DE86512-DE1A-400D-8C0A-AB46EBBF76B9" title="LOC_GRANCOLOMBIA_MAYA_MOD_TITLE"/>
-	</References> -->
+	</References>
     <ActionCriteria>
         <!-- all rulesets -->
 		<Criteria id="ECEP" any="1">
@@ -48,6 +48,30 @@
       		</Properties>
 			<File>ECEP/Scripts/ECEP.lua</File>
 		</AddGameplayScripts>
+        <!-- ECEP base government screen -->
+        <!-- <ReplaceUIScript id="ECEP_GovernmentScreen" criteria="ECEP_Base">
+			<Properties>
+                <LoadOrder>1010149</LoadOrder>
+				<LuaContext>GovernmentScreen</LuaContext>
+				<LuaReplace>ECEP/UI/Replacements/GovernmentScreen_ECEP.lua</LuaReplace>
+			</Properties>
+		</ReplaceUIScript> -->
+        <!-- ECEP XP1 government screen -->
+        <!-- <ReplaceUIScript id="ECEP_Expansion1_GovernmentScreen" criteria="ECEP_Expansion1">
+			<Properties>
+                <LoadOrder>1010149</LoadOrder>
+				<LuaContext>GovernmentScreen</LuaContext>
+				<LuaReplace>ECEP/UI/Replacements/GovernmentScreen_ECEP_Expansion1.lua</LuaReplace>
+			</Properties>
+		</ReplaceUIScript> -->
+        <!-- ECEP XP2 government screen -->
+        <!-- <ReplaceUIScript id="ECEP_Expansion2_GovernmentScreen" criteria="ECEP_Expansion2">
+			<Properties>
+                <LoadOrder>1010149</LoadOrder>
+				<LuaContext>GovernmentScreen</LuaContext>
+				<LuaReplace>ECEP/UI/Replacements/GovernmentScreen_ECEP_Expansion2.lua</LuaReplace>
+			</Properties>
+		</ReplaceUIScript> -->
         <!-- ECEP base unit panel -->
         <ReplaceUIScript id="ECEP_UnitPanel" criteria="ECEP_Base">
 			<Properties>
@@ -73,6 +97,11 @@
 			</Properties>
 		</ReplaceUIScript>
         <ImportFiles id="ECEP_Files" criteria="ECEP">
+            <!-- ECEP government screen files -->
+            <File>ECEP/UI/Replacements/GovernmentScreen.lua</File>
+            <!-- <File>ECEP/UI/Replacements/GovernmentScreen_ECEP.lua</File> -->
+            <!-- <File>ECEP/UI/Replacements/GovernmentScreen_ECEP_Expansion1.lua</File> -->
+            <!-- <File>ECEP/UI/Replacements/GovernmentScreen_ECEP_Expansion2.lua</File> -->
             <!-- ECEP unit panel files -->
             <File>ECEP/UI/Replacements/UnitPanel_ECEP.lua</File>
             <File>ECEP/UI/Replacements/UnitPanel_ECEP_Expansion1.lua</File>
@@ -109,6 +138,11 @@
 	<Files>
         <!-- ECEP gameplay script -->
         <File>ECEP/Scripts/ECEP.lua</File>
+        <!-- ECEP government screen files -->
+        <File>ECEP/UI/Replacements/GovernmentScreen.lua</File>
+        <!-- <File>ECEP/UI/Replacements/GovernmentScreen_ECEP.lua</File> -->
+        <!-- <File>ECEP/UI/Replacements/GovernmentScreen_ECEP_Expansion1.lua</File> -->
+        <!-- <File>ECEP/UI/Replacements/GovernmentScreen_ECEP_Expansion2.lua</File> -->
         <!-- ECEP unit panel files -->
         <File>ECEP/UI/Replacements/UnitPanel_ECEP.lua</File>
         <File>ECEP/UI/Replacements/UnitPanel_ECEP_Expansion1.lua</File>

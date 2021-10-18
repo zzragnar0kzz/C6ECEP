@@ -2,11 +2,11 @@
 ![ECEP Ingame](/IMAGES/ECEP_Ingame.png)
 
 # Overview
-A mod that allows a unit to receive a minimum amount of experience from combat even when it has (a) promotion(s) pending. Any such experience will be banked.
+A mod that allows a unit to continue to receive experience from combat after it has earned enough for its next promotion. Any such experience will be banked. Combat experience banked in this manner is persistent between sessions, and will be earned at an approximation of the usual rate. This approximation includes any applicable bonuses for an attacking unit, melee or ranged combat, and/or a kill, but excludes any experience modifiers the unit may possess.
 
-Upon promotion, any banked experience will be applied to the unit, up to the amount needed for its next promotion. Any banked experience beyond this amount will remain banked for the following promotion. While the unit has any experience banked, new experience from combat will be capped at the minimum amount, but will continue to accrue.
+Upon receiving a promotion, any banked experience will be applied to the unit, up to the amount needed for its next promotion. As it is possible to bank enough experience for multiple promotions, any banked experience beyond this amount will remain banked for the following promotion.
 
-Ingame world-view text indicating the amount of experience banked from a particular combat will appear alongside or instead of the world-view text indicating the total amount of experience earned from a particular combat. Additionally, units with banked experience will reflect the total amount banked alongside other stats in the XP area tooltip of the Unit panel.
+Ingame world-view text indicating the amount of experience banked from a particular combat will appear alongside or instead of the usual world-view text indicating the total amount of experience earned from that combat. Additionally, any units with banked experience will reflect the total amount banked alongside other stats in the XP area tooltip of the Unit panel when they are selected.
 
 Experience earned from sources other than actual combat will be ignored by this mod.
 
