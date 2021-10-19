@@ -29,6 +29,8 @@ Notwithstanding the above, ECEP also enforces any caps on earned experience whic
 
 ECEP currently does not recognize a City siege attack separately from any other attack. If values calculated by ECEP are used for such combat, they will currently adhere to the rules and caps for unit-to-unit combat.
 
+Ingame effects that instantly provide a unit its "next" promotion provide a variable amount of experience depending on the amount required for that unit's next promotion. Due to the way the game handles these effects, no experience will be provided if the unit has a promotion pending. ECEP currently does not affect any such experience in any way.
+
 # Localization
 When obtained via any of the official channels referenced in the #Installation section below, releases contain new Frontend and Ingame text fully localized in the following language(s):
 - English (en_US)
