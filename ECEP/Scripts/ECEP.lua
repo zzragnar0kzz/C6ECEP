@@ -23,7 +23,7 @@ EM = ExposedMembers;
 	should be defined prior to Initialize()
 =========================================================================== ]]
 -- exposed member function DebugPrint( sFunction, sMessage ) prints a debug entry with sFunction and sMessage to the log file if IsDebugEnabled is true
-function EM.DebugPrint( sFunction, sMessage ) if EM.IsDebugEnabled then print("[DEBUG] " .. sFunction .. "(): " .. sMessage); end end
+function EM.DebugPrint( sFunction, sMessage ) if EM.IsDebugEnabled then print("[DEBUG] " .. sFunction .. "(): " .. tostring(sMessage)); end end
 -- the global Debug flag; DebugPrint() successfully outputs if this is true
 EM.IsDebugEnabled = true;
 -- shortcut for DebugPrint()
@@ -37,10 +37,19 @@ EM.PromotionLevels = (EM.PromotionLevels) and EM.PromotionLevels or {
 };
 -- table of current government indices by Player
 EM.PlayerGovernments = (EM.PlayerGovernments) and EM.PlayerGovernments or {};
--- global experience max-per-combat, barbarian soft cap, and max barbarian level values
-EM.MaxExperiencePerCombat = tonumber(GameInfo.GlobalParameters["EXPERIENCE_MAXIMUM_ONE_COMBAT"].Value);
-EM.ExperienceBarbSoftCap = tonumber(GameInfo.GlobalParameters["EXPERIENCE_BARB_SOFT_CAP"].Value);
-EM.ExperienceMaxBarbLevel = tonumber(GameInfo.GlobalParameters["EXPERIENCE_MAX_BARB_LEVEL"].Value);
+-- relevant global parameters related to combat experience
+EM.XPMaxOneCombat = tonumber(GameInfo.GlobalParameters["EXPERIENCE_MAXIMUM_ONE_COMBAT"].Value);
+EM.XPBarbSoftCap = tonumber(GameInfo.GlobalParameters["EXPERIENCE_BARB_SOFT_CAP"].Value);
+EM.XPMaxBarbLevel = tonumber(GameInfo.GlobalParameters["EXPERIENCE_MAX_BARB_LEVEL"].Value);
+EM.XPCityCaptured = tonumber(GameInfo.GlobalParameters["EXPERIENCE_CITY_CAPTURED"].Value);
+EM.XPCombatAttackerBonus = tonumber(GameInfo.GlobalParameters["EXPERIENCE_COMBAT_ATTACKER_BONUS"].Value);
+EM.XPCombatRanged = tonumber(GameInfo.GlobalParameters["EXPERIENCE_COMBAT_RANGED"].Value);
+EM.XPDistrictVsUnit = tonumber(GameInfo.GlobalParameters["EXPERIENCE_DISTRICT_VS_UNIT"].Value);
+EM.XPKillBonus = tonumber(GameInfo.GlobalParameters["EXPERIENCE_KILL_BONUS"].Value);
+EM.XPNotCombatRanged = tonumber(GameInfo.GlobalParameters["EXPERIENCE_NOT_COMBAT_RANGED"].Value);
+EM.XPUnitVsDistrictNotCityCaptured = tonumber(GameInfo.GlobalParameters["EXPERIENCE_UNIT_VS_DISTRICT_NOT_CITY_CAPTURED"].Value);
+-- table of bonuses for combat type
+EM.CombatBonusXP = { AIR = 0, ["AIR-TO-AIR"] = EM.XPNotCombatRanged, ["AIR-TO-GROUND"] = EM.XPCombatRanged, BOMBARD = EM.XPCombatRanged, ICBM = 0, MELEE = EM.XPNotCombatRanged, RANGED = EM.XPCombatRanged, RELIGIOUS = 0, };
 -- table of policy cards with combat experience modifiers, keyed by both policy type and database index
 EM.PolicyXPModifiers = {};
 for policy in GameInfo.PolicyModifiers() do 
@@ -78,191 +87,300 @@ for ability in GameInfo.UnitAbilityModifiers() do
         end
     end
 end
+
 -- CombatTypes does not appear to be available in this context, so define a makeshift version; (unknown hashes?: 1184946373, 1640240290)
-EM.CombatTypeByHash = { [1184946373] = "AIR", [1338578493] = "BOMBARD", [1640240290] = "ICBM", [748940753] = "MELEE", [784649805] = "RANGED", ["-3"] = "RELIGIOUS" };
+EM.CombatTypeByHash = { [1184946373] = "AIR", [1338578493] = "BOMBARD", [1640240290] = "ICBM", [748940753] = "MELEE", [784649805] = "RANGED", [1580168296] = "RELIGIOUS" };
 -- global combat tracker; this should increment with each combat
 EM.CombatCounter = (EM.CombatCounter) and EM.CombatCounter or 0;
--- difficulty data
+-- difficulty level types by hash
 EM.DifficultyLevels, EM.NumDifficultyLevels = {}, 0;
-for row in GameInfo.Difficulties() do
-	EM.NumDifficultyLevels = EM.NumDifficultyLevels + 1;
-	EM.DifficultyLevels[DB.MakeHash(row.DifficultyType)] = { DifficultyType = row.DifficultyType, Modifier = EM.NumDifficultyLevels };
+-- init default difficulty type and level, and high- and low-difficulty XP modifiers
+EM.DefaultDifficultyType, EM.DefaultDifficultyLevel, EM.HighDifficultyXPModifier, EM.LowDifficultyXPModifier = "DIFFICULTY_PRINCE", 4, 10, -15;
+for row in GameInfo.Difficulties() do 
+    EM.NumDifficultyLevels = EM.NumDifficultyLevels + 1;
+    EM.DifficultyLevels[DB.MakeHash(row.DifficultyType)] = { Type = row.DifficultyType, Level = EM.NumDifficultyLevels }; 
+end
+-- other combat experience modifiers
+-- EM.KabulXPModifier = 0;
+EM.XPModifiers = {};
+for modifier in GameInfo.ModifierArguments() do 
+    if modifier.ModifierId == "MINOR_CIV_KABUL_UNIT_EXPERIENCE_BONUS" then EM.XPModifiers[modifier.ModifierId] = modifier.Value; 
+    elseif modifier.ModifierId == "HIGH_DIFFICULTY_UNIT_XP_SCALING" then 
+        EM.HighDifficultyXPModifier = modifier.Extra;
+    elseif modifier.ModifierId == "LOW_DIFFICULTY_UNIT_XP_SCALING" then 
+        EM.DefaultDifficultyType = modifier.SecondExtra;
+        EM.DefaultDifficultyLevel = EM.DifficultyLevels[DB.MakeHash(EM.DefaultDifficultyType)].Level;
+        EM.LowDifficultyXPModifier = modifier.Extra;
+    end
+end
+-- difficulty level xp modifiers by type
+-- EM.DifficultyXPModifiers = { 
+--     ["DIFFICULTY_SETTLER"] = 45, ["DIFFICULTY_CHIEFTAIN"] = 30, ["DIFFICULTY_WARLORD"] = 15, ["DIFFICULTY_PRINCE"] = 0, 
+--     ["DIFFICULTY_KING"] = 15, ["DIFFICULTY_EMPEROR"] = 30, ["DIFFICULTY_IMMORTAL"] = 45, ["DIFFICULTY_DEITY"] = 60
+-- };
+
+--[[]]
+function EM.InitializeUnitProperty( pUnit, sPropertyName, iValue )
+    pUnit:SetProperty(sPropertyName, iValue);
+    -- Dprint("InitializeUnitProperty", "Player " .. iPlayerID .. ": Property " .. sPropertyName .. " for Unit " .. );
+end
+
+--[[]]
+function EM.GetCombatParameters( sCombatType, tCombatant, bIsAttacker )
+    -- debugging header
+    local sF = "GetCombatParameters";
+    -- initialize result table and action adverb
+    local t, sAction = { Combat = sCombatType, IsAttacker = bIsAttacker, BonusXP = 0, XPBonuses = {}, ModifierXP = 0, XPModifiers = {} }, bIsAttacker and "Attacking" or "Defending";
+     -- target player ID
+    t.PlayerID = tCombatant[CombatResultParameters.ID].player;
+    -- true when this is a valid player; abort when not true
+    t.IsValid = (Players[t.PlayerID] ~= nil);
+    -- true when this is the Barbarian player; abort when true
+    t.IsBarbarian = t.IsValid and Players[t.PlayerID]:IsBarbarian() or false;
+    -- true when this player is human
+    t.IsHuman = t.IsValid and Players[t.PlayerID]:IsHuman() or false;
+    -- true when this is a major player
+    t.IsMajor = t.IsValid and Players[t.PlayerID]:IsMajor() or false;
+    -- combatant ID corresponds to a city, district, or unit in the appropriate table; combatant type is an integer representing same
+    t.CombatantID, t.CombatantType = tCombatant[CombatResultParameters.ID].id, tCombatant[CombatResultParameters.ID].type;
+    -- identify combatant as city/district/unit using provided type
+    t.IsCity = t.CombatantType == ComponentType.CITY;
+    t.IsDistrict = t.CombatantType == ComponentType.DISTRICT;
+    t.IsUnit = t.CombatantType == ComponentType.UNIT;
+    -- 
+    t.MaxHP, t.Damage, t.FinalDamage = tCombatant[CombatResultParameters.MAX_HIT_POINTS], tCombatant[CombatResultParameters.DAMAGE_TO], tCombatant[CombatResultParameters.FINAL_DAMAGE_TO];
+    -- true when this combatant has sustained more damage than it has hit points
+    t.IsDead = t.FinalDamage > t.MaxHP;
+    -- combatant combat strength, applicable strength modifiers, and XP earned from this combat
+    t.CombatStrength = tCombatant[CombatResultParameters.COMBAT_STRENGTH];
+    t.StrengthModifier = tCombatant[CombatResultParameters.STRENGTH_MODIFIER];
+    t.XP = tCombatant[CombatResultParameters.EXPERIENCE_CHANGE];
+    -- 
+    local pPlayer = t.IsValid and Players[t.PlayerID] or nil;
+    if t.IsCity then 
+        -- 
+        local pCity = (pPlayer ~= nil) and pPlayer:GetCities():FindID(t.CombatantID) or nil;
+    elseif t.IsDistrict then 
+        -- 
+        local pDistrict = (pPlayer ~= nil) and pPlayer:GetDistricts():FindID(t.CombatantID) or nil;
+        local pDistrictData = (pDistrict ~= nil) and GameInfo.Districts[pDistrict:GetType()] or nil;
+        t.DistrictType = (pDistrictData ~= nil) and pDistrictData.DistrictType or nil;
+    elseif t.IsUnit then 
+        -- 
+        local pPlayerConfig = (PlayerConfigurations[t.PlayerID] ~= nil) and PlayerConfigurations[t.PlayerID] or nil;
+        local pPlayerCulture = (pPlayer ~= nil) and pPlayer:GetCulture() or nil;
+        local pUnit = (pPlayer ~= nil) and pPlayer:GetUnits():FindID(t.CombatantID) or nil;
+        local pUnitData = (pUnit ~= nil) and GameInfo.Units[pUnit:GetType()] or nil;
+        local pUnitExperience = (pUnit ~= nil) and pUnit:GetExperience() or nil;
+        local pUnitAbility = (pUnit ~= nil) and pUnit:GetAbility() or nil;
+        t.DifficultyHash = (pPlayerConfig ~= nil) and pPlayerConfig:GetHandicapTypeID() or nil;
+        t.DifficultyType = (t.DifficultyHash ~= nil) and EM.DifficultyLevels[t.DifficultyHash].Type or nil;
+        t.DifficultyLevel = (t.DifficultyHash ~= nil) and EM.DifficultyLevels[t.DifficultyHash].Level or nil;
+        t.DifficultyXPModifier = 0;
+        t.PromotionClass = (pUnitData ~= nil) and pUnitData.PromotionClass or "'UNSPECIFIED'";
+        t.UnitType = (pUnitData ~= nil) and pUnitData.UnitType or "'UNSPECIFIED'";
+        t.IsEligible = pUnit ~= nil and pUnitExperience ~= nil;
+        -- target unit's level, current XP, and XPFNL
+        t.Level, t.CurrentXP, t.XPFNL = 1, t.IsEligible and pUnitExperience:GetExperiencePoints() or nil, t.IsEligible and pUnitExperience:GetExperienceForNextLevel() or nil;
+        -- target unit's current XP balance and last known current XP total
+        t.BalanceXP = (t.IsEligible and pUnit:GetProperty("XP_BALANCE") ~= nil) and pUnit:GetProperty("XP_BALANCE") or 0;
+        t.LastCurrentXP = (t.IsEligible and pUnit:GetProperty("LAST_CURRENT_XP") ~= nil) and pUnit:GetProperty("LAST_CURRENT_XP") or 0;
+        -- when unit has enough XP for its next promotion, and that promotion would cross the barbarian soft XP cap threshold, begin enforcing the cap on any new XP banked prior to applying that promotion
+        for i, v in ipairs(EM.PromotionLevels) do if (t.LastCurrentXP >= v.Min and t.LastCurrentXP <= v.Max) then t.Level = i; end end
+        -- add the attacker XP bonus to the XP bonuses table when this is the attacking player
+        if t.IsAttacker then t.XPBonuses["ATTACKER"] = EM.XPCombatAttackerBonus; end
+        -- combat type bonus
+        t.XPBonuses[sCombatType] = (EM.CombatBonusXP[sCombatType] ~= nil) and EM.CombatBonusXP[sCombatType] or 0;
+        -- adjust the XP modifier for each valid ability attached to this unit
+        for k, v in pairs(EM.AbilityXPModifiers) do if (pUnitAbility ~= nil and pUnitAbility:GetAbilityCount(k) ~= nil and pUnitAbility:GetAbilityCount(k) > 0) then t.XPModifiers[k] = v; end end
+        -- adjust the XP modifier for any valid policy card that is slotted
+        for i = 0, pPlayerCulture:GetNumPolicySlots() - 1 do 
+            -- database index of the policy in slot i
+            t.Policy = pPlayerCulture:GetSlotPolicy(i);
+            -- adjust the XP modifier
+            if (t.Policy == EM.PolicyXPModifiers.POLICY_SURVEY and t.PromotionClass == "PROMOTION_CLASS_RECON") then t.XPModifiers[EM.PolicyXPModifiers[t.Policy].Policy] = EM.PolicyXPModifiers[t.Policy].Modifier;
+            elseif (t.Policy ~= EM.PolicyXPModifiers.POLICY_SURVEY and EM.PolicyXPModifiers[t.Policy] ~= nil) then t.XPModifiers[EM.PolicyXPModifiers[t.Policy].Policy] = EM.PolicyXPModifiers[t.Policy].Modifier;
+            end
+        end
+        -- XP modifiers for major players
+        if t.IsMajor then 
+            -- difficulty XP modifier
+            if not t.IsHuman then 
+                if t.DifficultyLevel < EM.DefaultDifficultyLevel then t.DifficultyXPModifier = (EM.DefaultDifficultyLevel - t.DifficultyLevel) * EM.LowDifficultyXPModifier;
+                elseif t.DifficultyLevel > EM.DefaultDifficultyLevel then t.DifficultyXPModifier = (t.DifficultyLevel - EM.DefaultDifficultyLevel) * EM.HighDifficultyXPModifier;
+                end
+            end
+            -- if (t.IsHuman and t.DifficultyLevel < 4) or (not t.IsHuman and t.DifficultyLevel > 4) then t.XPModifiers[t.DifficultyType] = EM.DifficultyXPModifiers[t.DifficultyType]; end
+            -- last known government refresh
+            t.Government = pPlayer:GetProperty("CURRENT_GOVERNMENT_INDEX");
+            if t.Government == nil or t.Government == -1 then t.Government = (EM.PlayerGovernments[t.PlayerID] ~= nil) and EM.PlayerGovernments[t.PlayerID] or -1; end
+            pPlayer:SetProperty("CURRENT_GOVERNMENT_INDEX", t.Government);
+            -- adjust the XP modifier for major players when a valid government is in use
+            if EM.GovernmentXPModifiers[t.Government] ~= nil then t.XPModifiers[EM.GovernmentXPModifiers[t.Government].Government] = EM.GovernmentXPModifiers[t.Government].Modifier; end
+            -- adjust the XP modifier when this major player is suzerain of Kabul
+            for i, pMinor in ipairs(PlayerManager.GetAliveMinors()) do 
+                local bIsMinorKabul = (PlayerConfigurations[pMinor:GetID()] ~= nil and PlayerConfigurations[pMinor:GetID()]:GetCivilizationTypeName() == "CIVILIZATION_KABUL");
+                local bIsTargetSuzerain = (pMinor:GetInfluence() ~= nil and pMinor:GetInfluence():GetSuzerain() == t.PlayerID);
+                if bIsMinorKabul and bIsTargetSuzerain then t.XPModifiers["MINOR_CIV_KABUL_UNIT_EXPERIENCE_BONUS"] = EM.XPModifiers["MINOR_CIV_KABUL_UNIT_EXPERIENCE_BONUS"]; end
+            end
+        end
+        -- 
+        for k, v in pairs(t.XPBonuses) do t.BonusXP = t.BonusXP + v; end
+        for k, v in pairs(t.XPModifiers) do t.ModifierXP = t.ModifierXP + v; end
+    else 
+    end
+    return t;
+end
+
+--[[]]
+function EM.GetCombatXP( tTarget, tEnemy, sAction, iX, iY )
+    -- debugging message headers
+    local sF, sTargetInfoMsg = "GetCombatXP", "Player " .. tostring(tTarget.PlayerID) .. ": ";
+    -- abort and return nil here when necessary, or return the provided XP value; otherwise calculate an XP value and return that
+    if not tTarget.IsValid then 
+        Dprint(sF, "Player " .. tostring(tTarget.PlayerID) .. " is 'NOT' a valid player; doing nothing");
+        return nil;
+    elseif tTarget.Combat == "ICBM" or tTarget.Combat == "RELIGIOUS" then 
+        Dprint(sF, sTargetInfoMsg .. "No combat experience awarded for '" .. tTarget.Combat .. "' combat; doing nothing");
+        return nil;
+    elseif tTarget.IsBarbarian then 
+        Dprint(sF, sTargetInfoMsg .. sAction .. " Barbarian horde; ignoring this combatant");
+        return nil;
+    elseif tTarget.IsCity or tTarget.IsDistrict or (tTarget.IsUnit and tTarget.UnitType == "UNIT_GIANT_DEATH_ROBOT") then 
+        local sTarget = tTarget.IsCity and " 'CITY'" or tTarget.IsDistrict and " " .. tostring(tTarget.DistrictType) or " " .. tostring(tTarget.UnitType);
+        Dprint(sF, sTargetInfoMsg .. sAction .. sTarget .. " is 'NOT' eligible for combat experience; ignoring this combatant");
+        return nil;
+    elseif tTarget.IsUnit and tTarget.IsDead then 
+        Dprint(sF, sTargetInfoMsg .. sAction .. " unit " .. tostring(tTarget.UnitType) .. " was 'KILLED'; no combat experience awarded");
+        return nil;
+    -- elseif tTarget.IsUnit and tTarget.XP > 0 then 
+    --     Dprint(sF, sTargetInfoMsg .. sAction .. " unit " .. tostring(tTarget.UnitType) .. " survived and received " .. tTarget.XP .. " combat experience from gamecore; proceeding with this value . . .");
+    --     return tTarget.XP;
+    elseif tTarget.IsUnit then 
+        if not tTarget.IsEligible then 
+            Dprint(sF, sTargetInfoMsg .. sAction .. " unit " .. tostring(tTarget.UnitType)  .. " has no current Unit or UnitExperience data; skipping this combatant");
+            return nil;
+        end
+        Dprint(sF, sTargetInfoMsg .. sAction .. " unit " .. tostring(tTarget.UnitType) .. " survived and is eligible for combat experience, but none was provided by gamecore; calculating experience earned . . .");
+        Dprint(sF, sAction .. " unit combat experience from gamecore: " .. tTarget.XP);
+        Dprint(sF, "Enemy HP: -" .. tEnemy.Damage .. " (" .. (tEnemy.MaxHP - tEnemy.FinalDamage) .. " / " .. tEnemy.MaxHP .. ")");
+        -- initialize base XP and base modifier values
+        local iBaseXP, iBaseXPModifier, iCalcXP = 1, 100, 1;
+        -- base XP is multiplied by this when enemy unit is killed
+        local iKillXPModifier, iXPModifier = tEnemy.IsDead and EM.XPKillBonus or 1, (iBaseXPModifier + tTarget.ModifierXP) / iBaseXPModifier;
+        -- 
+        local iDifficultyXPModifier = (iBaseXPModifier + tTarget.DifficultyXPModifier) / iBaseXPModifier;
+        -- reset potential air combat bonus
+        if tTarget.Combat == "AIR" then 
+            tTarget.BonusXP = tTarget.BonusXP - tTarget.XPBonuses["AIR"];
+            tTarget.XPBonuses["AIR"] = nil;
+            local bIsTargetAircraft = (tTarget.PromotionClass == "PROMOTION_CLASS_AIR_BOMBER" or tTarget.PromotionClass == "PROMOTION_CLASS_AIR_FIGHTER");
+            local bIsEnemyAircraft = (tEnemy.PromotionClass == "PROMOTION_CLASS_AIR_BOMBER" or tEnemy.PromotionClass == "PROMOTION_CLASS_AIR_FIGHTER");
+            if bIsTargetAircraft and bIsEnemyAircraft then 
+                tTarget.XPBonuses["AIR-TO-AIR"] = EM.CombatBonusXP["AIR-TO-AIR"];
+                tTarget.BonusXP = tTarget.BonusXP + tTarget.XPBonuses["AIR-TO-AIR"];
+            else
+                tTarget.XPBonuses["AIR-TO-GROUND"] = EM.CombatBonusXP["AIR-TO-GROUND"];
+                tTarget.BonusXP = tTarget.BonusXP + tTarget.XPBonuses["AIR-TO-GROUND"];
+            end
+        end
+        -- 
+        local sKilledFlag = tEnemy.IsDead and " 'KILLED' " or " ";
+        local sCalcMsg = sAction .. " unit vs" .. sKilledFlag;
+        -- 
+        if tEnemy.IsDistrict or tEnemy.IsCity then 
+            tTarget.BonusXP, tTarget.XPBonuses = 0, {};
+            if not tTarget.IsAttacker then 
+                iBaseXP = EM.XPDistrictVsUnit;
+                iCalcXP = iBaseXP;
+            elseif tTarget.IsAttacker then 
+                iBaseXP = EM.XPUnitVsDistrictNotCityCaptured;
+                if tTarget.Combat ~= "MELEE" and tEnemy.MaxHP == 0 then iBaseXP = 0;
+                elseif tTarget.Combat == "MELEE" and tEnemy.IsDead then iBaseXP = EM.XPCityCaptured;
+                end
+                iCalcXP = iBaseXP * iXPModifier;
+            end
+            sCalcMsg = sCalcMsg .. "city/district base combat experience: " .. iBaseXP;
+        elseif tEnemy.IsUnit then 
+            -- 
+            iBaseXP = (tEnemy.CombatStrength / tTarget.CombatStrength);
+            sCalcMsg = sCalcMsg .. "unit base combat experience: (" .. tEnemy.CombatStrength .. " / " .. tTarget.CombatStrength .. ") ";
+            if tTarget.IsAttacker and tEnemy.IsDead then 
+                iBaseXP = iBaseXP * EM.XPKillBonus; 
+                sCalcMsg = sCalcMsg .. "* " .. EM.XPKillBonus .. " = " .. iBaseXP;
+            else
+                sCalcMsg = sCalcMsg .. "= " .. iBaseXP;
+            end
+            iCalcXP = (iBaseXP + tTarget.BonusXP) * iXPModifier;
+        end
+        if iDifficultyXPModifier ~= 1 then iCalcXP = math.ceil(math.ceil(iCalcXP) * iDifficultyXPModifier);
+        else iCalcXP = math.ceil(iCalcXP);
+        end
+        -- 
+        Dprint(sF, sCalcMsg);
+        local sTargetBonusMsg = sAction .. " unit combat experience bonuses (+" .. tTarget.BonusXP .. " total):";
+        for k, v in pairs(tTarget.XPBonuses) do sTargetBonusMsg = sTargetBonusMsg .. " [" .. k .. " (+" .. v .. ")]"; end
+        Dprint(sF, sTargetBonusMsg);
+        local sTargetModifierMsg = sAction .. " unit combat experience modifiers (+" .. tTarget.ModifierXP .. "%% total):";
+        for k, v in pairs(tTarget.XPModifiers) do sTargetModifierMsg = sTargetModifierMsg .. " [" .. k .. " (+" .. v .. "%%)]"; end
+        Dprint(sF, sTargetModifierMsg);
+        if tTarget.DifficultyXPModifier ~= 0 then Dprint(sF, sAction .. " unit AI difficulty modifier: " .. tTarget.DifficultyXPModifier .. "%% [" .. tTarget.DifficultyType .. "]"); end
+        local sFinalCalcMsg = sAction .. " unit final calculated combat experience";
+        local sBarbCapEnforced = ": ";
+        if (tTarget.Level >= EM.XPMaxBarbLevel and tEnemy.IsValid and tEnemy.IsBarbarian) then 
+            sBarbCapEnforced = "(Barbarian soft XP cap enforced): ";
+            sFinalCalcMsg = sFinalCalcMsg .. sBarbCapEnforced .. iCalcXP .. " (";
+            iCalcXP = EM.XPBarbSoftCap;
+            sFinalCalcMsg = sFinalCalcMsg .. iCalcXP .. ")";
+        else
+            sFinalCalcMsg = sFinalCalcMsg .. sBarbCapEnforced .. iCalcXP;
+        end
+        Dprint(sF, sFinalCalcMsg);
+        EM.RefreshXPBalance(tTarget, iCalcXP, iX, iY);
+        return iCalcXP;
+    end
+end
+
+--[[]]
+function EM.RefreshXPBalance( tTarget, iXP, iX, iY )
+    -- 
+    local sF, sAction = "RefreshXPBalance", tTarget.IsAttacker and "Attacking " or "Defending ";
+    local pUnit = Players[tTarget.PlayerID]:GetUnits():FindID(tTarget.CombatantID);
+    local pUnitExperience = pUnit:GetExperience();
+    -- target unit's new XP balance and amount of XP to be banked
+    local iBankXP = ((tTarget.LastCurrentXP + iXP) > tTarget.XPFNL) and ((tTarget.LastCurrentXP + iXP) - tTarget.XPFNL) or 0;
+    local iNewBalanceXP = tTarget.BalanceXP + iBankXP;
+    Dprint(sF, "Banked combat experience: " .. iBankXP); -- .. " (New balance: " .. iNewBalanceXP .. ")");
+    -- reset the target unit's XP balance and last known current XP total properties to the new values
+    pUnit:SetProperty("XP_BALANCE", iNewBalanceXP);
+    pUnit:SetProperty("LAST_CURRENT_XP", tTarget.CurrentXP);
+    -- popup text to indicate how much, if any, experience was banked
+    if iBankXP > 0 and tTarget.IsHuman then 
+        Game.AddWorldViewText(tTarget.PlayerID, Locale.Lookup("[COLOR_LIGHTBLUE] +{1_XP}XP stored pending promotion [ENDCOLOR]", iBankXP), iX, iY, 0);
+    end
+    local sInfoMsg = "Player " .. tTarget.PlayerID .. ": " .. sAction .. tTarget.UnitType .. " (ID " .. tTarget.CombatantID .. ") survived, earning " .. iXP .. " combat experience ";
+    print(sInfoMsg .. "(Level " .. tTarget.Level .. ", " .. tTarget.LastCurrentXP .. " --> " .. tTarget.CurrentXP .. " XP / " .. tTarget.XPFNL .. " FNL, balance " .. tTarget.BalanceXP .. " --> " .. iNewBalanceXP .. " XP)");
 end
 
 --[[ =========================================================================
-	exposed member function GetCombatXP( pPlayer, pPlayerConfig, pPlayerCulture, pTarget, pEnemy, bIsAttacker, sCombatType, pUnit )
-        manually calculates combat experience for pTarget, for when the game fails to provide a value, like when the unit has any pending promotion(s)
-	should be defined prior to Initialize()
+	listener function OnTurnBegin( iTurn )
+	for Expansion1 ruleset and beyond; global Era for all Players
+	pre-init: this should be defined prior to Initialize()
 =========================================================================== ]]
-function EM.GetCombatXP( pPlayer, pPlayerConfig, pPlayerCulture, pTarget, pEnemy, bIsAttacker, sCombatType, pUnit )
-    -- debugging header, bonus for attacking unit, and this player's ID
-    local sF, iAttackerBonusXP, iPlayerID = "GetCombatXP", (bIsAttacker) and 1 or 0, pPlayer:GetID();
-    -- nil checks; return nil and a message if these fail
-    if pUnit == nil then return nil, "Player " .. tostring(iPlayerID) .. ": Players:GetUnits():FindID() returned nil for Unit " .. tostring(iUnitID) .. "; skipping this Unit"; end
-    if pUnit:GetExperience() == nil then return nil, "Player " .. tostring(iPlayerID) .. ": Unit:GetExperience() returned nil for Unit " .. tostring(iUnitID) .. "; skipping this Unit"; end
-    -- table of bonuses for combat type, and table of active combat bonuses
-    local tCombatBonusXP, tBonuses = { AIR = 2, BOMBARD = 1, ICBM = 0, MELEE = 2, RANGED = 1, RELIGIOUS = 0 }, { ATTACKER = (bIsAttacker) };
-    local iCombatBonusXP = (tCombatBonusXP[sCombatType] ~= nil) and tCombatBonusXP[sCombatType] or 0;
-    for k, v in pairs(tCombatBonusXP) do tBonuses[k] = (k == sCombatType); end
-    -- total bonus to be added to the base amount prior to modifiers
-    local iTotalBonusXP = iAttackerBonusXP + iCombatBonusXP;
-    -- this unit's GetAbility() method, unit data, and promotion class
-    local pUnitAbility = (pUnit ~= nil) and pUnit:GetAbility() or nil;
-    local pUnitData = (pUnit ~= nil) and GameInfo.Units[pUnit:GetType()] or nil;
-    local sPromotionClass = (pUnitData ~= nil and pUnitData.PromotionClass ~= nil) and pUnitData.PromotionClass or nil;
-    -- target and enemy combat strengths
-    local iTargetStr, iEnemyStr = pTarget[CombatResultParameters.COMBAT_STRENGTH], pEnemy[CombatResultParameters.COMBAT_STRENGTH];
-    -- default XP modifier, Kabul suzerain XP modifier, difficulty type hash, and active modifiers table
-    local iXPModifier, iKabulXPModifier, hDifficulty, tModifiers = 100, 100, pPlayerConfig:GetHandicapTypeID(), {};
-    -- difficulty level from type and modifier
-    local sDifficulty, iDifficulty = EM.DifficultyLevels[hDifficulty].DifficultyType, EM.DifficultyLevels[hDifficulty].Modifier;
-    -- instantly double the base XP when the enemy is destroyed
-    local bIsEnemyDead = (pEnemy[CombatResultParameters.FINAL_DAMAGE_TO] > pEnemy[CombatResultParameters.MAX_HIT_POINTS]);
-    local iKillModifier = (bIsAttacker and bIsEnemyDead and sCombatType ~= "AIR" and sCombatType ~= "ICBM" and sCombatType ~= "RELIGIOUS") and 2 or 1;
-    tModifiers.KILL = (iKillModifier > 1);
-    -- adjust the XP modifier for each valid ability attached to this unit
-    for k, v in pairs(EM.AbilityXPModifiers) do 
-        -- number of times this ability has been attached to this unit
-		local iAbilityCount = (pUnitAbility ~= nil) and pUnitAbility:GetAbilityCount(k) or -1;
-		-- adjust the XP modifier when the unit has this ability
-		if iAbilityCount ~= nil and iAbilityCount > 0 then 
-            iXPModifier = iXPModifier + v;
-            tModifiers[k] = true;
-        end
-    end
-    -- adjust the XP modifier for any valid policy card that is slotted
-    for i = 0, pPlayerCulture:GetNumPolicySlots() - 1 do 
-        -- database index of the policy in slot i
-        local iPolicyIndex = pPlayerCulture:GetSlotPolicy(i);
-        -- adjust the XP modifier when policy Survey is slotted and the target unit is a recon unit
-        if iPolicyIndex == EM.PolicyXPModifiers.POLICY_SURVEY and sPromotionClass == "PROMOTION_CLASS_RECON" then 
-            iXPModifier = iXPModifier + EM.PolicyXPModifiers[iPolicyIndex].Modifier;
-            tModifiers[EM.PolicyXPModifiers[iPolicyIndex].Policy] = true;
-        -- catch for any other valid policy; adjust the XP modifier by the indicated amount
-        elseif iPolicyIndex ~= EM.PolicyXPModifiers.POLICY_SURVEY and EM.PolicyXPModifiers[iPolicyIndex] ~= nil then 
-            iXPModifier = iXPModifier + EM.PolicyXPModifiers[iPolicyIndex].Modifier;
-            tModifiers[EM.PolicyXPModifiers[iPolicyIndex].Policy] = true;
-        end
-	end
-    -- major player XP modifiers
-    if pPlayer:IsMajor() then 
-        local iGovernmentIndex = pPlayer:GetProperty("CURRENT_GOVERNMENT_INDEX");
-        if iGovernmentIndex == nil or iGovernmentIndex == -1 then iGovernmentIndex = (EM.PlayerGovernments[iPlayerID] ~= nil) and EM.PlayerGovernments[iPlayerID] or -1; end
-        pPlayer:SetProperty("CURRENT_GOVERNMENT_INDEX", iGovernmentIndex);
-        Dprint(sF, "Player " .. iPlayerID .. ": CURRENT_GOVERNMENT_INDEX property is set to " .. iGovernmentIndex);
-        -- adjust the XP modifier for major players when a valid government is in use
-        if EM.GovernmentXPModifiers[iGovernmentIndex] ~= nil then 
-            iXPModifier = iXPModifier + EM.GovernmentXPModifiers[iGovernmentIndex].Modifier;
-            tModifiers[EM.GovernmentXPModifiers[iGovernmentIndex].Government] = true;
-        end
-        -- adjust the XP modifier when this major player is suzerain of Kabul
-        for i, pMinor in ipairs(PlayerManager.GetAliveMinors()) do 
-            -- this minor player's ID
-            local iMinorID = pMinor:GetID();
-            -- this minor's config and influence
-	    	local pMinorConfig, pMinorInfluence = PlayerConfigurations[iMinorID], pMinor:GetInfluence();
-            -- true when this minor is Kabul, target player is its suzerain, and target player is attacker
-    		if pMinorConfig ~= nil and pMinorConfig:GetCivilizationTypeName() == "CIVILIZATION_KABUL" and pMinorInfluence ~= nil and pMinorInfluence:GetSuzerain() == iPlayerID and bIsAttacker then 
-                -- adjust the XP modifier
-                iXPModifier = iXPModifier + iKabulXPModifier;
-                tModifiers.KABUL_SUZERAIN = true;
-    		end
-	    end
-        -- adjust the XP modifier for the indicated difficulty level when this is the human player
-        if pPlayer:IsHuman() and iDifficulty < 4 then 
-            if sDifficulty == "DIFFICULTY_SETTLER" then iXPModifier = iXPModifier + 45;
-            elseif sDifficulty == "DIFFICULTY_CHIEFTAIN" then iXPModifier = iXPModifier + 30;
-            elseif sDifficulty == "DIFFICULTY_WARLORD" then iXPModifier = iXPModifier + 15;
-            end
-            tModifiers["HUMAN_" .. sDifficulty] = true;
-        -- adjust the XP modifier for the indicated difficulty level when this is a major AI player
-        elseif not pPlayer:IsHuman() and iDifficulty > 4 then 
-            if sDifficulty == "DIFFICULTY_KING" then iXPModifier = iXPModifier + 10;
-            elseif sDifficulty == "DIFFICULTY_EMPEROR" then iXPModifier = iXPModifier + 20;
-            elseif sDifficulty == "DIFFICULTY_IMMORTAL" then iXPModifier = iXPModifier + 30;
-            elseif sDifficulty == "DIFFICULTY_DEITY" then iXPModifier = iXPModifier + 40;
-            end
-            tModifiers["AI_" .. sDifficulty] = true;
-        end
-    end
-    -- calculate the XP amount for this combat and round up the result
-    local iXP = math.ceil(((iKillModifier * (iEnemyStr / iTargetStr)) + iTotalBonusXP) * (iXPModifier / 100));
-    -- debugging 
-    local sPriInfoMsg = "Valid combat experience bonuses: ";
-    for k, v in pairs(tBonuses) do if v then sPriInfoMsg = sPriInfoMsg .. "[" .. k .. "] "; end end
-    Dprint(sF, sPriInfoMsg);
-    local sSecInfoMsg = "Valid combat experience modifiers: ";
-    for k, v in pairs(tModifiers) do if v then sSecInfoMsg = sSecInfoMsg .. "[" .. k .. "] "; end end
-    Dprint(sF, sSecInfoMsg);
-    local sDebugMsg = "ECEP calculated combat experience: ceiling(((" .. iKillModifier .. " * (" .. iEnemyStr .. " / " .. iTargetStr .. ")) + " .. iTotalBonusXP .. ") * (" .. iXPModifier .. " / 100)) = " .. iXP;
-    Dprint(sF, sDebugMsg);
-    -- reset the calculated XP amount when it exceeds the global max-per-combat value
-    if iXP > EM.MaxExperiencePerCombat then iXP = EM.MaxExperiencePerCombat; end
-    -- return the final determined XP amount and a nil message
-    return iXP, nil;
-end
-
---[[ =========================================================================
-	exposed member function SetXPBalance( pTarget, pEnemy, bIsAttacker, sCombatType, iX, iY )
-        (re)sets XP balance data for pTarget
-        displays world-view text at (iX, iY) reflecting XP banked from a combat
-	should be defined prior to Initialize()
-=========================================================================== ]]
-function EM.SetXPBalance( pTarget, pEnemy, bIsAttacker, sCombatType, iX, iY )
-    -- debugging header, target player and unit IDs, and target player data
-	local sF, iPlayerID, iUnitID = "SetXPBalance", pTarget[CombatResultParameters.ID].player, pTarget[CombatResultParameters.ID].id;
-    local pPlayer = Players[iPlayerID];
-    -- barbarian units do not appear to accrue combat experience, so abort here if target player is the barbarian player
-    if pPlayer:IsBarbarian() then 
-        Dprint(sF, "Player " .. iPlayerID .. ": Skipping Barbarian Unit " .. iUnitID);
-        return;
-    end
-    -- target player configuration data and culture data, and target unit data
-    local pPlayerConfig, pPlayerCulture, pUnit = PlayerConfigurations[iPlayerID], pPlayer:GetCulture(), pPlayer:GetUnits():FindID(iUnitID);
-    -- manually calculated XP value, and game-provided or manually calculated XP value
-    local iTargetXP, sResult = EM.GetCombatXP(pPlayer, pPlayerConfig, pPlayerCulture, pTarget, pEnemy, bIsAttacker, sCombatType, pUnit);
-    if iTargetXP == nil then 
-        Dprint(sF, sResult);
-        return;
-    end
-    Dprint(sF, "ECEP final determined combat experience: " .. iTargetXP);
-	local iXP = (pTarget[CombatResultParameters.EXPERIENCE_CHANGE] > 0) and pTarget[CombatResultParameters.EXPERIENCE_CHANGE] or iTargetXP;
-    Dprint(sF, "Actual combat experience: " .. iXP);
-	-- true when target unit data exists
-	if (pUnit ~= nil) then 
-        -- target unit XP data
-		local pUnitExperience = pUnit:GetExperience();
-        -- true when target unit XP data exists
-        if (pUnitExperience ~= nil) then 
-	    	-- target unit's level, current XP, and XPFNL
-    	    local iLevel, iCurrentXP, iXPFNL = 1, pUnitExperience:GetExperiencePoints(), pUnitExperience:GetExperienceForNextLevel();
-            -- local iXPTNL = iXPFNL - iCurrentXP;
-            for i, v in ipairs(EM.PromotionLevels) do if (iCurrentXP >= v.Min and iCurrentXP <= v.Max) then iLevel = i; end end
-            -- enforce barbarian XP soft cap
-            local iEnemyID = pEnemy[CombatResultParameters.ID].player;
-            if iLevel >= EM.ExperienceMaxBarbLevel and Players[iEnemyID] ~= nil and Players[iEnemyID]:IsBarbarian() then iXP = EM.ExperienceBarbSoftCap; end
-	    	-- target unit's current XP balance and last known current XP total
-        	local iBalanceXP = (pUnit:GetProperty("XP_BALANCE") ~= nil) and pUnit:GetProperty("XP_BALANCE") or 0;
-	    	local iLastCurrentXP = (pUnit:GetProperty("LAST_CURRENT_XP") ~= nil) and pUnit:GetProperty("LAST_CURRENT_XP") or 0;
-            -- target unit's new XP balance and amount of XP to be banked
-            local iBankXP = ((iLastCurrentXP + iXP) > iXPFNL) and ((iLastCurrentXP + iXP) - iXPFNL) or 0;
-            Dprint(sF, "Combat experience banked from this combat for this unit: " .. iBankXP);
-            local iNewBalanceXP = iBalanceXP + iBankXP;
-            Dprint(sF, "New banked experience balance for this unit: " .. iNewBalanceXP);
-	    	-- reset the target unit's XP balance and last known current XP total properties to the new values
-    		pUnit:SetProperty("XP_BALANCE", iNewBalanceXP);
-    		pUnit:SetProperty("LAST_CURRENT_XP", iCurrentXP);
-	        -- debugging output
-            local sAction = bIsAttacker and "Attacking" or "Defending";
-		    local sPriAttMsg = "Player " .. iPlayerID .. ": " .. sAction .. " Unit " .. iUnitID .. " survived, earning " .. iXP .. " combat experience";
-			local sSecAttMsg = " (" .. iLastCurrentXP .. " --> " .. iCurrentXP .. " XP / " .. iXPFNL .. " FNL, balance " .. iBalanceXP .. " --> " .. iNewBalanceXP .. " XP)";
-        	Dprint(sF, sPriAttMsg .. sSecAttMsg);
-            -- popup text to indicate how much, if any, experience was banked
-            if iBankXP > 0 and Players[iPlayerID]:IsHuman() then 
-                Game.AddWorldViewText(iPlayerID, Locale.Lookup("[COLOR_LIGHTBLUE] +{1_XP}XP stored pending promotion [ENDCOLOR]", iBankXP), iX, iY, 0);
-            end
-        end
-    end
+function OnTurnBegin( iTurn )
+	EM.CurrentTurn = iTurn;			-- update the global current turn
+	-- local iPreviousEra = GUE.CurrentEra;
+	-- local iEraThisTurn = Game.GetEras():GetCurrentEra();		-- fetch the current era
+	-- -- local Dprint = GUE.DebugPrint;
+	-- if (iPreviousEra ~= iEraThisTurn) then			-- true when the current era differs from the stored global era
+	-- 	GUE.CurrentEra = iEraThisTurn;			-- update the global era
+	-- 	Dprint("Turn " .. tostring(iTurn) .. ": The current global game Era has changed from " .. tostring(GUE.Eras[iPreviousEra]) .. " to " .. tostring(GUE.Eras[iEraThisTurn]));
+	-- 	if (GUE.HostilesAfterReward > 2) then Dprint("Hostility > 2: Hostile villagers will now appear with increased intensity following most goody hut rewards");
+	-- 	elseif (GUE.HostilesAfterReward > 1) then Dprint("Hostility > 1: Hostile villagers will now appear with increased frequency and intensity following most goody hut rewards");
+	-- 	end
+	-- else
+	-- 	Dprint("Turn " .. tostring(iTurn) .. ": The current global game Era is " .. tostring(GUE.Eras[iEraThisTurn]));
+	-- end
 end
 
 --[[ =========================================================================
@@ -271,27 +389,47 @@ end
 	should be defined prior to Initialize()
 =========================================================================== ]]
 function OnCombat( tCombatResult )
-	-- debugging header, and attacker and defender combat result parameters
-	local sF, pAttacker, pDefender = "OnCombat", tCombatResult[CombatResultParameters.ATTACKER], tCombatResult[CombatResultParameters.DEFENDER];
-	-- map (x, y) coordinates of the combat location
-	local iX, iY = tCombatResult[CombatResultParameters.LOCATION].x, tCombatResult[CombatResultParameters.LOCATION].y;
-    -- increment global combat tracker, and get combat type values
+    -- increment global combat tracker
     EM.CombatCounter = EM.CombatCounter + 1;
+    -- combat type hash
     local hCombatType = tCombatResult[CombatResultParameters.COMBAT_TYPE];
-    local sCombatType = (EM.CombatTypeByHash[hCombatType] ~= nil) and EM.CombatTypeByHash[hCombatType] or "undefined";
+    -- combat type string
+    local sCombatType = (EM.CombatTypeByHash[hCombatType] ~= nil) and EM.CombatTypeByHash[hCombatType] or "'UNKNOWN'";
+    -- debugging header
+    local sF = "OnCombat";
+	-- fetch combat result parameters and initialize local result tables for attacker and defender
+    local tAttacker, tDefender = EM.GetCombatParameters(sCombatType, tCombatResult[CombatResultParameters.ATTACKER], true), EM.GetCombatParameters(sCombatType, tCombatResult[CombatResultParameters.DEFENDER], false);
+    -- map (x, y) coordinates of the combat location
+	local iX, iY = tCombatResult[CombatResultParameters.LOCATION].x, tCombatResult[CombatResultParameters.LOCATION].y;
+    -- 
     local bDefenderCaptured = tCombatResult[CombatResultParameters.DEFENDER_CAPTURED];
-    local sPriDebugMsg = tostring("Tracked global combat " .. EM.CombatCounter .. ": " .. sCombatType .. " (Hash " .. hCombatType .. ")");
-    if bDefenderCaptured then sPriDebugMsg = sPriDebugMsg .. " plus captured defender"; end
-    Dprint(sF, sPriDebugMsg);
-	-- these are true when the attacker or defender, respectively, is a unit
-	pAttacker.IsUnit, pDefender.IsUnit = pAttacker[CombatResultParameters.ID].type == ComponentType.UNIT, pDefender[CombatResultParameters.ID].type == ComponentType.UNIT;
-    -- these are true when the attacker or defender, respectively, has sustained more damage than it has hit points
-    pAttacker.IsDead = pAttacker[CombatResultParameters.FINAL_DAMAGE_TO] > pAttacker[CombatResultParameters.MAX_HIT_POINTS];
-    pDefender.IsDead = pDefender[CombatResultParameters.FINAL_DAMAGE_TO] > pDefender[CombatResultParameters.MAX_HIT_POINTS];
-    -- set attacker XP balance info when it is a unit and it is not dead
-    if pAttacker.IsUnit and not pAttacker.IsDead then EM.SetXPBalance(pAttacker, pDefender, true, sCombatType, iX, iY); end
-    -- set defender XP balance info when it is a unit and it is not dead
-    if pDefender.IsUnit and not pDefender.IsDead then EM.SetXPBalance(pDefender, pAttacker, false, sCombatType, iX, iY); end
+	
+    -- debugging output
+    local sAttacker = tAttacker.IsUnit and tAttacker.UnitType or tAttacker.IsDistrict and tAttacker.DistrictType or tAttacker.IsCity and "'CITY'" or "'UNKNOWN'";
+    local sDefender = tDefender.IsUnit and tDefender.UnitType or tDefender.IsDistrict and tDefender.DistrictType or tDefender.IsCity and "'CITY'" or "'UNKNOWN'";
+    local sPriDebugMsg = "Turn " .. EM.CurrentTurn .. ": Global combat " .. EM.CombatCounter .. ": " .. sCombatType .. " (Hash " .. hCombatType .. ") at plot (x " .. iX .. ", y " .. iY .. "), ";
+    local sSecDebugMsg = "Attacking Player " .. tostring(tAttacker.PlayerID) .. " (" .. sAttacker .. ", ID " .. tostring(tAttacker.CombatantID) .. ") vs Defending Player " .. tostring(tDefender.PlayerID) .. " (" .. sDefender .. ", ID " .. tostring(tDefender.CombatantID) .. ") [ DEFENDER_CAPTURED = " .. tostring(bDefenderCaptured) .. " ]";
+    print(sPriDebugMsg .. sSecDebugMsg);
+	
+    -- 
+    local iAttackerXP, iDefenderXP = EM.GetCombatXP(tAttacker, tDefender, "Attacking", iX, iY), EM.GetCombatXP(tDefender, tAttacker, "Defending", iX, iY);
+    
+end
+
+--[[]]
+function OnPlayerTurnActivated( iPlayerID, bIsFirstTime )
+    if bIsFirstTime then 
+        local pPlayer = Players[iPlayerID];
+        if pPlayer ~= nil and not pPlayer:IsBarbarian() then 
+            for i, pUnit in pPlayer:GetUnits():Members() do 
+                if (pUnit:GetProperty("XP_BALANCE") == nil or pUnit:GetProperty("LAST_CURRENT_XP") == nil) then 
+                    local iUnitID = pUnit:GetID();
+                    print("Player " .. iPlayerID .. ": Resetting ECEP properties for Unit " .. iUnitID);
+                    OnUnitAddedToMap(iPlayerID, iUnitID);
+                end
+            end
+        end
+    end
 end
 
 --[[ =========================================================================
@@ -437,6 +575,16 @@ end
 function OnCombatHook() Events.Combat.Add(OnCombat); end
 
 --[[ =========================================================================
+	hook function OnTurnBeginHook()
+	actions related to a global game Era change
+	init: this should be hooked to Events.LoadScreenClose in Initialize()
+=========================================================================== ]]
+function OnTurnBeginHook() Events.TurnBegin.Add(OnTurnBegin); end
+
+-- 
+function OnPlayerTurnActivatedHook() Events.PlayerTurnActivated.Add(OnPlayerTurnActivated); end
+
+--[[ =========================================================================
 	hook function OnPlayerTurnDeactivatedHook()
         hooks OnPlayerTurnDeactivated() to Events.PlayerTurnDeactivated
     should be defined prior to and executed in AddEventHooks()
@@ -494,6 +642,10 @@ function AddEventHooks( sF )
     -- attach listener functions to the appropriate Events with debugging output
     Events.LoadScreenClose.Add(OnCombatHook);
 	Dprint(sF, "OnCombat() successfully hooked to Events.Combat");
+    Events.LoadScreenClose.Add(OnTurnBeginHook);
+	Dprint(sF, "OnTurnBegin() successfully hooked to Events.TurnBegin");
+    Events.LoadScreenClose.Add(OnPlayerTurnActivatedHook);
+    Dprint(sF, "OnPlayerTurnActivated() successfully hooked to Events.PlayerTurnActivated");
     Events.LoadScreenClose.Add(OnPlayerTurnDeactivatedHook);
     Dprint(sF, "OnPlayerTurnDeactivated() successfully hooked to Events.PlayerTurnDeactivated");
     Events.LoadScreenClose.Add(OnUnitAbilityGainedHook);
@@ -520,16 +672,23 @@ function Initialize()
     print("Loading ECEP gameplay script ECEP.lua . . .");
     -- combat experience modifiers; extra output when debugging
     print(EM.RowOfDashes);
-    print("Configuring Policy Card experience modifiers for experience banking system . . .");
+    print("Retrieving relevant game setup option(s) . . .");
+    print("Barbarian experience soft cap: " .. EM.XPBarbSoftCap .. "; this is enforced beginning at Level " .. EM.XPMaxBarbLevel);
+    print("Other Unit-vs-Unit per-combat experience cap: " .. EM.XPMaxOneCombat);
+    -- print("Kabul suzerain combat experience modifier: +" .. EM.KabulXPModifier .. "%%");
+    print("Configuring Policy Card modifiers for experience banking system . . .");
     for k, v in pairs(EM.PolicyXPModifiers) do if type(v) == "table" then Dprint(sF, "[" .. v.Policy .. "]: +" .. v.Modifier .. "%%"); end end
-    print("Configuring Government experience modifiers for experience banking system . . .");
+    print("Configuring Government modifiers for experience banking system . . .");
     for k, v in pairs(EM.GovernmentXPModifiers) do if type(v) == "table" then Dprint(sF, "[" .. v.Government .. "]: +" .. v.Modifier .. "%%"); end end
-    print("Configuring Unit Ability experience modifiers for experience banking system . . .");
+    print("Configuring Unit Ability modifiers for experience banking system . . .");
     for k, v in pairs(EM.AbilityXPModifiers) do Dprint(sF, "[" .. k .. "]: +" .. v .. "%%"); end
+    print("Configuring other modifiers for experience banking system . . .");
+    for k, v in pairs(EM.XPModifiers) do Dprint(sF, "[" .. k .. "]: +" .. v .. "%%"); end
+    
     -- attach listener functions to the appropriate Events; extra output when debugging
     print(EM.RowOfDashes);
     print("Configuring required hook(s) for ingame Event(s) . . .");
-    AddEventHooks("Initialize:AddEventHooks");
+    AddEventHooks("Initialize():AddEventHooks");
     print(EM.RowOfDashes);
 	print("ECEP configuration complete. Proceeding . . .");
 end
@@ -546,3 +705,224 @@ Initialize();
 --[[ =========================================================================
 	end ECEP.lua gameplay script
 =========================================================================== ]]
+
+--[[ =========================================================================
+	exposed member function SetXPBalance( sCombatType, iX, iY, pTarget, iTargetPlayerID, iTargetUnitID, pEnemy, iEnemyPlayerID, iEnemyUnitID, bIsAttacker, bDefenderCaptured )
+        (re)sets XP balance data for pTarget
+        displays world-view text at (iX, iY) reflecting XP banked from a combat
+	should be defined prior to Initialize()
+=========================================================================== ]]
+-- function EM.SetXPBalance( sCombatType, iX, iY, pTarget, iTargetPlayerID, iTargetUnitID, pEnemy, iEnemyPlayerID, iEnemyUnitID, bIsAttacker, bDefenderCaptured )
+--     -- logging details
+--     local sF, sAction, sCombatant = "SetXPBalance", bIsAttacker and "Attacking" or "Defending", " Unit ";
+--     -- result message; this will be assembled below when XP is calculated, and returned for logging
+--     local sInfoMsg = "Player " .. tostring(iTargetPlayerID) .. ": ";
+--     -- abort if the target player or ID is nil or invalid
+--     if iTargetPlayerID == nil or iTargetPlayerID < 0 or Players[iTargetPlayerID] == nil then return sAction .. " player ID " .. tostring(iTargetPlayerID) .. " is nil or otherwise invalid; ignoring"; end
+--     -- abort if the combat type is ICBM
+--     if sCombatType == "ICBM" then return sInfoMsg .. "No experience awarded for ICBM strike; ignoring"; end
+--     -- abort if the enemy player or ID is nil or invalid
+--     if iEnemyPlayerID == nil or iEnemyPlayerID < 0 or Players[iEnemyPlayerID] == nil then return sInfoMsg .. "Enemy player ID " .. tostring(iEnemyPlayerID) .. " is nil or otherwise invalid; ignoring"; end
+--     -- fetch Players table for target player; abort if this player is the Barbarian player 
+--     local pPlayer = Players[iTargetPlayerID];
+--     if pPlayer:IsBarbarian() then return sInfoMsg .. sAction .. " Barbarian horde; ignoring provided ID " .. iTargetUnitID; end
+--     -- identify target and enemy combatants as city/district/unit using provided types
+--     local bIsTargetCity, bIsEnemyCity = pTarget[CombatResultParameters.ID].type == ComponentType.CITY, pEnemy[CombatResultParameters.ID].type == ComponentType.CITY;
+--     local bIsTargetDistrict, bIsEnemyDistrict = pTarget[CombatResultParameters.ID].type == ComponentType.DISTRICT, pEnemy[CombatResultParameters.ID].type == ComponentType.DISTRICT;
+--     local bIsTargetUnit, bIsEnemyUnit = pTarget[CombatResultParameters.ID].type == ComponentType.UNIT, pEnemy[CombatResultParameters.ID].type == ComponentType.UNIT;
+--     -- these are true when the target or enemy, respectively, has sustained more damage than it has hit points
+--     local bIsTargetDead = pTarget[CombatResultParameters.FINAL_DAMAGE_TO] > pTarget[CombatResultParameters.MAX_HIT_POINTS];
+--     local bIsEnemyDead = pEnemy[CombatResultParameters.FINAL_DAMAGE_TO] > pEnemy[CombatResultParameters.MAX_HIT_POINTS];
+--     -- abort if target combatant is a city or district
+--     if bIsTargetCity or bIsTargetDistrict then 
+--         sCombatant = bIsTargetCity and " City " or " District ";
+--         return sInfoMsg .. sAction .. sCombatant .. "(ID " .. iTargetUnitID .. "); no experience awarded";
+--     elseif bIsTargetUnit then 
+--         -- abort if target combatant unit is dead
+--         if bIsTargetDead then 
+--             return sInfoMsg .. sAction .. sCombatant .. "(ID " .. iTargetUnitID .. ") was killed; no experience awarded";
+--         else
+--             -- fetch PlayerConfigurations table for target player; abort if this returns nil
+--             local pPlayerConfig = PlayerConfigurations[iTargetPlayerID];
+--             if pPlayerConfig == nil then return "PlayerConfigurations returned nil for target player " .. iTargetPlayerID .. "; ignoring"; end
+--             -- fetch target player culture data; abort if this returns nil
+--             local pPlayerCulture = pPlayer:GetCulture();
+--             if pPlayerCulture == nil then return "Players:GetCulture() returned nil for target player " .. iTargetPlayerID .. "; ignoring"; end
+--             -- fetch target player units data; abort if this returns nil
+--             local pUnit = pPlayer:GetUnits():FindID(iTargetUnitID);
+--             if pUnit == nil then return sInfoMsg .. "Players:GetUnits():FindID() returned nil for provided ID " .. iTargetUnitID .. "; ignoring"; end
+--             -- fetch target unit experience data; abort if this returns nil
+--             local pUnitExperience = (pUnit ~= nil) and pUnit:GetExperience() or nil;
+--             if pUnitExperience == nil then return sInfoMsg .. "Units:GetExperience() returned nil for provided ID " .. iTargetUnitID .. "; ignoring"; end
+--             -- fetch target unit ability data; abort if this returns nil
+--             local pUnitAbility = (pUnit ~= nil) and pUnit:GetAbility() or nil;
+--             if pUnitAbility == nil then return sInfoMsg .. "Units:GetAbility() returned nil for provided ID " .. iTargetUnitID .. "; ignoring"; end
+--             -- fetch general data for target unit; abort if this returns nil
+--             local pUnitData = (pUnit ~= nil) and GameInfo.Units[pUnit:GetType()] or nil;
+--             if pUnitData == nil then return sInfoMsg .. "GameInfo.Units[Units:GetType()] returned nil for provided ID " .. iTargetUnitID .. "; ignoring"; end
+--             -- fetch target unit's promotion class; abort if this returns nil
+--             local sTargetPromotionClass = (pUnitData.PromotionClass ~= nil) and pUnitData.PromotionClass or nil;
+--             if sTargetPromotionClass == nil then return sInfoMsg .. "GameInfo.Units[Units:GetType()].PromotionClass returned nil for provided ID " .. iTargetUnitID .. "; ignoring"; end
+--             -- 
+--             local sTargetUnitType = (pUnitData.UnitType ~= nil) and pUnitData.UnitType or nil;
+--             print(sTargetUnitType .. ", " .. sTargetPromotionClass);
+--             -- 
+--             local sEnemyPromotionClass = tostring(GameInfo.Units[Players[iEnemyPlayerID]:GetUnits():FindID(iEnemyUnitID):GetType()].PromotionClass);
+--             local sEnemyUnitType = tostring(GameInfo.Units[Players[iEnemyPlayerID]:GetUnits():FindID(iEnemyUnitID):GetType()].UnitType);
+--             print(sEnemyUnitType .. ", " .. sEnemyPromotionClass);
+--             -- target and enemy combat strength, applicable strength modifiers, and XP earned from this combat
+--             local iTargetCombatStr, iEnemyCombatStr = pTarget[CombatResultParameters.COMBAT_STRENGTH], pEnemy[CombatResultParameters.COMBAT_STRENGTH];
+--             local iTargetStrModifier, iEnemyStrModifier = pTarget[CombatResultParameters.STRENGTH_MODIFIER], pEnemy[CombatResultParameters.STRENGTH_MODIFIER];
+--             local iTargetXP, iEnemyXP = pTarget[CombatResultParameters.EXPERIENCE_CHANGE], pEnemy[CombatResultParameters.EXPERIENCE_CHANGE];
+--             -- target unit's level, current XP, and XPFNL
+--             local iLevel, iCurrentXP, iXPFNL = 1, pUnitExperience:GetExperiencePoints(), pUnitExperience:GetExperienceForNextLevel();
+--             -- target unit's current XP balance and last known current XP total
+--             local iBalanceXP = (pUnit:GetProperty("XP_BALANCE") ~= nil) and pUnit:GetProperty("XP_BALANCE") or 0;
+--             local iLastCurrentXP = (pUnit:GetProperty("LAST_CURRENT_XP") ~= nil) and pUnit:GetProperty("LAST_CURRENT_XP") or 0;
+--             -- when unit has enough XP for its next promotion, and that promotion would cross the barbarian soft XP cap threshold, begin enforcing the cap on any new XP banked prior to applying that promotion
+--             for i, v in ipairs(EM.PromotionLevels) do if (iLastCurrentXP >= v.Min and iLastCurrentXP <= v.Max) then iLevel = i; end end
+--             -- initialize experience bonuses and modifiers tables
+--             local tBonuses, tModifiers = { ATTACKER = bIsAttacker, KILL = bIsEnemyDead }, {};
+--             -- add valid combat type bonuses to the bonuses table
+--             for k, v in pairs(EM.CombatBonusXP) do tBonuses[k] = (k == sCombatType); end
+--             -- initialize base XP to the barbarian soft XP cap value
+--             local iBaseXP = EM.XPBarbSoftCap;
+--             -- added when target unit is the attacker
+--             local iAttackerBonusXP = bIsAttacker and EM.XPCombatAttackerBonus or 0;
+--             -- combat type bonus
+--             local iCombatBonusXP = (EM.CombatBonusXP[sCombatType] ~= nil) and EM.CombatBonusXP[sCombatType] or 0;
+--             -- base XP is multiplied by this when enemy is killed
+--             local iKillXPModifier = bIsEnemyDead and EM.XPKillBonus or 1;
+--             -- base XP modifier, Kabul suzerain XP modifier, and difficulty type hash
+--             local iBaseXPModifier, iKabulXPModifier, hDifficulty = 100, 100, pPlayerConfig:GetHandicapTypeID();
+--             -- default additional XP modifier
+--             local iXPModifier = 0;
+--             -- difficulty type and level from type hash
+--             local sDifficulty, iDifficultyLevel = EM.DifficultyLevels[hDifficulty].Type, EM.DifficultyLevels[hDifficulty].Level;
+--             -- difficulty level XP modifier
+--             local iDifficultyXPModifier = iBaseXPModifier;
+--             -- calculate base combat XP
+--             if bIsEnemyCity or bIsEnemyDistrict then 
+--                 if bIsAttacker then 
+--                     if bDefenderCaptured then iBaseXP = EM.XPCityCaptured;
+--                     else iBaseXP = EM.XPUnitVsDistrictNotCityCaptured;
+--                     end
+--                 elseif not bIsAttacker then iBaseXP = EM.XPDistrictVsUnit;
+--                 end
+--             elseif bIsEnemyUnit then iBaseXP = iEnemyCombatStr / iTargetCombatStr;
+--             end
+--             -- adjust the XP modifier for each valid ability attached to this unit
+--             for k, v in pairs(EM.AbilityXPModifiers) do 
+--                 -- number of times this ability has been attached to this unit
+--                 local iAbilityCount = (pUnitAbility ~= nil) and pUnitAbility:GetAbilityCount(k) or -1;
+--                 -- adjust the XP modifier when the unit has this ability
+--                 if iAbilityCount ~= nil and iAbilityCount > 0 then 
+--                     iXPModifier = iXPModifier + v;
+--                     tModifiers[k] = true;
+--                 end
+--             end
+--             -- adjust the XP modifier for any valid policy card that is slotted
+--             for i = 0, pPlayerCulture:GetNumPolicySlots() - 1 do 
+--                 -- database index of the policy in slot i
+--                 local iPolicyIndex = pPlayerCulture:GetSlotPolicy(i);
+--                 -- adjust the XP modifier when policy Survey is slotted and the target unit is a recon unit
+--                 if iPolicyIndex == EM.PolicyXPModifiers.POLICY_SURVEY and sTargetPromotionClass == "PROMOTION_CLASS_RECON" then 
+--                     iXPModifier = iXPModifier + EM.PolicyXPModifiers[iPolicyIndex].Modifier;
+--                     tModifiers[EM.PolicyXPModifiers[iPolicyIndex].Policy] = true;
+--                 -- catch for any other valid policy; adjust the XP modifier by the indicated amount
+--                 elseif iPolicyIndex ~= EM.PolicyXPModifiers.POLICY_SURVEY and EM.PolicyXPModifiers[iPolicyIndex] ~= nil then 
+--                     iXPModifier = iXPModifier + EM.PolicyXPModifiers[iPolicyIndex].Modifier;
+--                     tModifiers[EM.PolicyXPModifiers[iPolicyIndex].Policy] = true;
+--                 end
+--             end
+--             -- major player XP modifiers
+--             if pPlayer:IsMajor() then 
+--                 -- last known government refresh
+--                 local iGovernmentIndex = pPlayer:GetProperty("CURRENT_GOVERNMENT_INDEX");
+--                 if iGovernmentIndex == nil or iGovernmentIndex == -1 then 
+--                     iGovernmentIndex = (EM.PlayerGovernments[iTargetPlayerID] ~= nil) and EM.PlayerGovernments[iTargetPlayerID] or -1; 
+--                 end
+--                 pPlayer:SetProperty("CURRENT_GOVERNMENT_INDEX", iGovernmentIndex);
+--                 -- adjust the XP modifier for major players when a valid government is in use
+--                 if EM.GovernmentXPModifiers[iGovernmentIndex] ~= nil then 
+--                     iXPModifier = iXPModifier + EM.GovernmentXPModifiers[iGovernmentIndex].Modifier;
+--                     tModifiers[EM.GovernmentXPModifiers[iGovernmentIndex].Government] = true;
+--                 end
+--                 -- adjust the XP modifier when this major player is suzerain of Kabul
+--                 for i, pMinor in ipairs(PlayerManager.GetAliveMinors()) do 
+--                     -- this minor player's ID
+--                     local iMinorID = pMinor:GetID();
+--                     -- this minor's config and influence
+--                     local pMinorConfig, pMinorInfluence = PlayerConfigurations[iMinorID], pMinor:GetInfluence();
+--                     -- true when this minor is Kabul, target player is its suzerain, and target player is attacker
+--                     if pMinorConfig ~= nil and pMinorConfig:GetCivilizationTypeName() == "CIVILIZATION_KABUL" and pMinorInfluence ~= nil and pMinorInfluence:GetSuzerain() == iTargetPlayerID and bIsAttacker then 
+--                         -- adjust the XP modifier
+--                         iXPModifier = iXPModifier + iKabulXPModifier;
+--                         tModifiers.KABUL_SUZERAIN = true;
+--                     end
+--                 end
+--                 -- adjust the XP modifier for human Major players below and AI Major players above the indicated difficulty level
+--                 if ((pPlayer:IsHuman() and iDifficultyLevel < 4) or (not pPlayer:IsHuman() and iDifficultyLevel > 4)) then 
+--                     iDifficultyXPModifier = iDifficultyXPModifier + EM.DifficultyXPModifiers[sDifficulty];
+--                     local sPlayer = pPlayer:IsHuman() and "HUMAN_" or "AI_";
+--                     tModifiers[sPlayer .. sDifficulty] = true;
+--                 end
+--             end
+--             -- calculate total XP earned from this combat
+--             local iTotalBonusXP, iFinalXPModifier = (iCombatBonusXP + iAttackerBonusXP), ((iDifficultyXPModifier + iXPModifier) / iBaseXPModifier);
+--             local iCalcXP = ((iBaseXP * iKillXPModifier) + iTotalBonusXP) * iFinalXPModifier;
+--             -- reset calculated XP if necessary
+--             if bIsEnemyCity or bIsEnemyDistrict then
+--                 -- no bonuses or modifiers when defending against city/district attacks
+--                 if not bIsAttacker then iCalcXP = iBaseXP;
+--                 -- no bonuses when attacking city/district defenses
+--                 elseif bIsAttacker then iCalcXP = iBaseXP * iFinalXPModifier;
+--                 end
+--             elseif sCombatType == "AIR" then 
+--                 -- no attacker bonus for air combat
+--                 iCalcXP = ((iBaseXP * iKillXPModifier) + iCombatBonusXP) * iFinalXPModifier;
+--             elseif sCombatType == "BOMBARD" then 
+--                 -- no bonuses for bombard attacks
+--                 iCalcXP = iBaseXP * iFinalXPModifier;
+--             end
+--             -- use the rounded calculated value if it does not exceed the defined per-combat cap, otherwise use the cap value
+--             local iXP = (math.ceil(iCalcXP) > EM.XPMaxOneCombat and bIsEnemyUnit) and EM.XPMaxOneCombat or math.ceil(iCalcXP);
+--             -- enforce barbarian XP soft cap
+--             iXP = (iLevel >= EM.XPMaxBarbLevel and Players[iEnemyPlayerID] ~= nil and Players[iEnemyPlayerID]:IsBarbarian()) and EM.XPBarbSoftCap or iXP;
+--             -- logging
+--             local sPriCalcXPMsg = "Calculated [rounded/capped] 'vs' actual ingame combat experience value: ";
+--             local sSecCalcMsg = "((" .. iBaseXP .. " * " .. iKillXPModifier .. ") + " .. iTotalBonusXP .. ") * " .. iFinalXPModifier .. " = " .. iCalcXP .. " [ " .. iXP .. " ] 'vs' " .. iTargetXP;
+--             -- reset logging messages as necessary
+--             if bIsEnemyCity or bIsEnemyDistrict then
+--                 if not bIsAttacker then sSecCalcMsg = iBaseXP .. " = " .. iCalcXP .. " [ " .. iXP .. " ] 'vs' " .. iTargetXP;
+--                 elseif bIsAttacker then sSecCalcMsg = iBaseXP .. " * " .. iFinalXPModifier .. " = " .. iCalcXP .. " [ " .. iXP .. " ] 'vs' " .. iTargetXP;
+--                 end
+--             elseif sCombatType == "AIR" then sSecCalcMsg = "((" .. iBaseXP .. " * " .. iKillXPModifier .. ") + " .. iCombatBonusXP .. ") * " .. iFinalXPModifier .. " = " .. iCalcXP .. " [ " .. iXP .. " ] 'vs' " .. iTargetXP;
+--             elseif sCombatType == "BOMBARD" then sSecCalcMsg = iBaseXP .. " * " .. iFinalXPModifier .. " = " .. iCalcXP .. " [ " .. iXP .. " ] 'vs' " .. iTargetXP;
+--             end
+--             -- logging
+--             local sPriInfoMsg = sAction .. " unit combat experience bonuses:";
+--             for k, v in pairs(tBonuses) do if v then sPriInfoMsg = sPriInfoMsg .. " [" .. tostring(k) .. "]"; end end
+--             Dprint(sF, sPriInfoMsg);
+--             local sSecInfoMsg = sAction .. " unit combat experience modifiers:";
+--             for k, v in pairs(tModifiers) do if v then sSecInfoMsg = sSecInfoMsg .. " [" .. tostring(k) .. "]"; end end
+--             Dprint(sF, sSecInfoMsg);
+--             Dprint(sF, sPriCalcXPMsg .. sSecCalcMsg);
+--             -- use the game-provided value if it exists, otherwise continue using the calculated/capped value
+--             iXP = (iTargetXP > 0) and iTargetXP or iXP;
+--             -- target unit's new XP balance and amount of XP to be banked
+--             local iBankXP = ((iLastCurrentXP + iXP) > iXPFNL) and ((iLastCurrentXP + iXP) - iXPFNL) or 0;
+--             local iNewBalanceXP = iBalanceXP + iBankXP;
+--             Dprint(sF, "Banked combat experience: " .. iBankXP); -- .. " (New balance: " .. iNewBalanceXP .. ")");
+--             -- reset the target unit's XP balance and last known current XP total properties to the new values
+--             pUnit:SetProperty("XP_BALANCE", iNewBalanceXP);
+--             pUnit:SetProperty("LAST_CURRENT_XP", iCurrentXP);
+--             -- popup text to indicate how much, if any, experience was banked
+--             if iBankXP > 0 and Players[iTargetPlayerID]:IsHuman() then 
+--                 Game.AddWorldViewText(iTargetPlayerID, Locale.Lookup("[COLOR_LIGHTBLUE] +{1_XP}XP stored pending promotion [ENDCOLOR]", iBankXP), iX, iY, 0);
+--             end
+--             sInfoMsg = sInfoMsg .. sAction .. sCombatant .. "(ID " .. iTargetUnitID .. ") survived, earning " .. iXP .. " combat experience";
+--             return sInfoMsg .. " (Level " .. iLevel .. ", " .. iLastCurrentXP .. " --> " .. iCurrentXP .. " XP / " .. iXPFNL .. " FNL, balance " .. iBalanceXP .. " --> " .. iNewBalanceXP .. " XP)";
+--         end
+--     end
+-- end
