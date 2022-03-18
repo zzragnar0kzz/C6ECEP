@@ -2,40 +2,31 @@
 ![ECEP Ingame](/IMAGES/ECEP_Ingame.png)
 
 # Overview
-A mod that allows a unit to continue to receive experience when it has a promotion pending.
+A mod that allows a unit to continue to receive combat experience when it has a promotion pending.
 
 # Features
-ECEP utilizes custom ingame Player and Unit properties which allow any valid unit to continue to receive combat experience even after it has earned enough for its next promotion. Any experience earned which exceeds this amount will now be banked instead of lost. Combat experience banked in this manner is persistent between sessions.
+ECEP utilizes custom ingame Player and Unit properties. Together, these properties allow any valid unit to receive combat experience in some situations where it otherwise would not. Specifically:
 
-Game-provided values for experience earned from a combat will be used when they are available, and will be applied to a unit's actual experience and/or stored balance as appropriate. When the game does not provide combat experience values, ECEP will attempt to approximate these values itself, and the approximated amount will be entirely applied to a unit's stored balance. This approximation is calculated based on the combat strengths of the attacking and defending units, the type of combat, and any applicable bonuses and/or modifiers, including but not limited to the following:
-- Securing a kill doubles the base calculated experience amount, before any other bonuses or modifiers are applied, for the attacking unit only
-- A flat bonus for Melee, Ranged, or Bombard combat types
-- Modifiers from Civilization Traits, such as Nubia's +50% for Ranged units
-- The Oligarchy government provides a +20% experience modifier when it is active
-- Policy cards that provide an experience modifier for one or more unit types
-- Modifiers from District buildings, such as +25% to trained units from a Barracks, Stable, or Lighthouse
-- Great Generals, Great Admirals, and other Great People that provide an experience modifier to a unit when retired
-- Modifiers for Human Players on Difficulty settings below Prince
-- Modifiers for AI (Major) Players on Difficulty settings above Prince
+- Any combat experience earned by a unit which exceeds the amount needed for its next promotion will now be banked instead of lost
+- A unit that engages in combat when it has a promotion pending will, if it survives and is eligible, receive experience approximately equal to the amount it would have received if it did not have a pending promotion. All such experience earned will be banked
 
-Upon receiving a promotion, any banked experience will be applied to a unit, up to the amount needed for its next promotion. As it is possible to bank enough experience for multiple promotions, any banked experience beyond this amount will remain banked for the following promotion.
+Combat experience banked in this manner is persistent between sessions. Banked experience will be applied to a unit following promotion, up to the amount required for its next promotion; it is therefore possible for a unit to bank enough experience for multiple promotions.
 
-Ingame world-view text indicating the amount of experience banked from a particular combat will appear alongside or instead of the usual world-view text indicating the total amount of experience earned from that combat. Additionally, any units with banked experience will reflect the total amount banked alongside other stats in the XP area tooltip of the Unit panel when they are selected.
+When the game does not provide an experience value and ECEP must calculate one, if the result of the calculation is greater than zero, ingame world-view text indicating the amount of experience earned will appear like it would when the game does provide a value. Additionally, when a unit with banked experience is selected, the banked amount will be added to the unit's current total for display in the UI, as shown above.
 
 # Limitations
-ECEP's combat experience formula is close, but there are still some unaccounted-for variables that cause its result to occassionally not match that provided by the game, when one is provided at all. The practical effect of this is that used amounts calculated by ECEP may currently be slightly greater than or less than any amounts that would have been provided by the game.
+ECEP DOES NOT OPERATE IN REAL TIME! It cannot operate until it has been provided combat results by the gamecore. If multiple combats involving the same unit occur in rapid succession, it is possible that several of them will have concluded __BEFORE__ ECEP has received the results of the first. If that unit dies, it is possible that it will have been removed from the game __BEFORE__ ECEP gets a chance to act on it. ECEP will attempt to anticipate this and act accordingly.
 
-Notwithstanding the above, ECEP also enforces any caps on earned experience which may be present, such as the maximum amount from one combat and maximum amount from barbarian combat.
+ECEP's combat experience formula is close, but it is still only an approximation. The practical effect of this is that amounts calculated by ECEP may be slightly greater than or less than any amounts that would have been provided by the game in a similar circumstance.
 
-ECEP currently does not recognize a City siege attack separately from any other attack. If values calculated by ECEP are used for such combat, they will currently adhere to the rules and caps for unit-to-unit combat.
+ECEP does not provide combat experience in cases where the game never does.
+
+Notwithstanding the above, ECEP enforces any caps on earned experience which may be present, such as the maximum amount from one combat and maximum amount from barbarian combat.
 
 Ingame effects that instantly provide a unit its "next" promotion provide a variable amount of experience depending on the amount required for that unit's next promotion. Due to the way the game handles these effects, no experience will be provided if the unit has a promotion pending. ECEP currently does not affect any such experience in any way.
 
 # Localization
-When obtained via any of the official channels referenced in the #Installation section below, releases contain new Frontend and Ingame text fully localized in the following language(s):
-- English (en_US)
-- Spanish (es_ES)
-- French (fr_FR)
+ECEP's changes to ingame text involve little beyond altering the Unit Panel to reflect any banked experience in addition to the actual value, which should be accurately reflected regardless of the language in use.
 
 # Compatibility
 ## SP / MP
@@ -90,4 +81,10 @@ ECEP employs customized versions of the following ingame UI context files for al
 If your mod employs custom versions of any of these UI context files, conflicts __WILL__ arise.
 
 # Special Thanks
-To the greater community.
+ECEP generally relies on knowledge gleaned from the following
+
+* The [Civilization Fanatics](https://www.civfanatics.com/) community, particularly the [Civ VI Experience](https://forums.civfanatics.com/resources/civ-vi-experience.26777/) reference
+* The [Civilization Fandom](https://civilization.fandom.com/) wiki, particularly the [Promotion (Civ6)](https://civilization.fandom.com/wiki/Promotion_(Civ6)/) article
+* [Lua Objects](https://docs.google.com/spreadsheets/d/1HQSUOmw_pI8dNSr1kmun4qAHj6SsOVfa1vGTbk5mVvs/edit#gid=1768114376), a spreadsheet that breaks down some of the combat parameters
+
+Extra special thanks to these contributors, and to the greater community.
