@@ -36,7 +36,7 @@ ECEP will consider the following when the other combatant is a unit:
     - If the selected level is higher than the default level, add a game-defined value (default 10%) for each level above (d > 1)
     - If the selected level is lower than the default level, subtract a game-defined value (default 15%) for each level below (d < 1)
 
-Given the above, then xp = ceiling((((e / t) * k) + b) * m). For human and minor AI players, there are no further calculations. For major AI players, take the previous calculated value (p), and xp = ceiling(p * d).
+Given the above, then `xp = ceiling((((e / t) * k) + b) * m)`. For human and minor AI players, there are no further calculations. For major AI players, take the previous calculated value (p), and `xp = ceiling(p * d)`.
 
 Finally, if the calculated value exceeds any defined experience caps, it will be reset as appropriate.
 
@@ -46,7 +46,7 @@ If the other combatant is a city or district, most of the factors identified abo
 - For City/District vs Unit (defending), e = a game-defined value (default 2)
 - For Unit (attacking) vs City/District, e = a game-defined value (default 3). If the attack results in a captured city, then instead e = a different game-defined value (default 10)
 
-Given the above, then xp = ceiling(e * m). For human and minor AI players, there are no further calculations. For major AI players, take the previous calculated value (p), and xp = ceiling(p * d).
+Given the above, then `xp = ceiling(e * m)`. For human and minor AI players, there are no further calculations. For major AI players, take the previous calculated value (p), and `xp = ceiling(p * d)`.
 
 Caps are NOT enforced when a city or district is involved in the combat, so every XP calculated is an XP awarded.
 
