@@ -20,37 +20,36 @@ The game is inconsistent with how it internally handles combat experience awards
 This changes if the unit was at its current level cap prior to combat. Rather than providing a value and simply disregarding it, as it seems to do with Barbarian units, the game will instead provide a value of zero experience, even when the unit survives and is otherwise eligible for experience. When this happens, ECEP will attempt to calculate the amount of experience that should have been provided to the unit. The manner in which it does this varies depending on the other combatant.
 
 ### Unit
-ECEP will consider the following when the other combatant is a unit: 
+ECEP will consider the following factors when the other combatant is a unit: 
 
-- The combat strength of the target unit `(t)`
-- The combat strength of the enemy unit `(e)`
-- An immediate base XP multiplier `(k)` equal to `1`; if the target is the attacker and the enemy is dead, then instead `k = 2` (or whatever the game-defined value is, if different)
-- An amount of bonus XP `(b)` equal to the sum of any applicable flat bonus amounts, such as those for the attacking unit and for specific combat types
-- A modifier `(m)` equal to `(100 + M) / 100`, where `M` is the sum of any applicable non-difficulty percentage modifiers, including but not necessarily limited to those from 
+- The combat strength of the target unit `t`
+- The combat strength of the enemy unit `e`
+- An immediate base XP multiplier `k` equal to `1`; if the target is the attacker and the enemy is dead, then instead `k = 2` (or whatever the game-defined value is, if different)
+- An amount of bonus XP `b` equal to the sum of any applicable flat bonus amounts, such as those for the attacking unit and for specific combat types
+- A modifier `m` equal to `(100 + M) / 100`, where `M` is the sum of any applicable non-difficulty percentage modifiers, including but not necessarily limited to those from 
     - civilization traits
     - unit abilities
     - active governments
     - slotted policy cards
     - city-state suzerainty
-- A modifier `(d)` for major AI players for the selected difficulty level; on the default difficulty level, `d = 1`
+- A modifier `d` for major AI players for the selected difficulty level; on the default difficulty level, `d = 1`
     - If the selected level is higher than the default level, add a game-defined value (default 10%) for each level above (`d > 1`)
     - If the selected level is lower than the default level, subtract a game-defined value (default 15%) for each level below (`0 < d < 1`)
 
-Given the above, then `xp = ceiling((((e / t) * k) + b) * m)`.
+Given the above, then `xp = (((e / t) * k) + b) * m`, rounded UP.
 
-For human and minor AI players, there are no further calculations. For major AI players, take the previous calculated value `(p)`, and `xp = ceiling(p * d)`.
+For human and minor AI players, there are no further calculations. For major AI players, take the previous calculated value `p`, and `xp = p * d`, rounded UP.
 
 Finally, if the calculated value exceeds any defined experience caps, it will be reset as appropriate.
 
 ### City/District
-If the other combatant is a city or district, factors `(t)`, `(e)`, `(k)`, and `(b)` identified above will be disregarded. Factors `(m)` and `(d)` above will be considered. Base experience `(e)` provided here varies:
+If the other combatant is a city or district, factors `t`, `e`, `k`, and `b` identified above will be disregarded. Factors `m` and `d` above will be considered as appropriate. Experience provided here varies depending upon (a) whether the target unit is attacking or defending, (b) the health of the enemy city or district at the start of combat, and (c) if a city, whether it was captured:
 
-- For City/District vs Unit (defending), `e = 2` (or whatever the game-defined value is, if different)
-- For Unit (attacking) vs City/District, `e = 3` (or whatever the game-defined value is, if different). If the attack results in a captured city, then instead `e =  10` (or whatever the game-defined value is, if different)
+- For City/District vs Unit (defending), base experience `e = 2` (or whatever the game-defined value is, if different). No modifiers apply here, so `xp = e`
+- When the combat type is non-Melee and the defending enemy city or district has 0 HP at the start of combat, base experience `e = 0`. No modifiers apply here, so `xp = e`
+- Otherwise, for Unit (attacking) vs City/District, base experience `e = 3` (or whatever the game-defined value is, if different). If the attack results in a captured city, then instead `e =  10` (or whatever the game-defined value is, if different). Factor `m` applies here, so `xp = e * m`, rounded DOWN.
 
-Given the above, then `xp = ceiling(e * m)`. 
-
-For human and minor AI players, there are no further calculations. For major AI players, take the previous calculated value `(p)`, and `xp = ceiling(p * d)`.
+For major AI players when target is attacking and `e > 0`, take the previous calculated value `p`, and `xp = p * d`, rounded UP. Otherwise, `xp = p`.
 
 Caps are NOT enforced when a city or district is involved in the combat, so every XP calculated is an XP awarded.
 
