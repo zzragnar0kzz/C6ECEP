@@ -2,7 +2,7 @@
 ![ECEP Ingame](/IMAGES/ECEP_Ingame.png)
 
 # Overview
-**E**nhanced **C**ombat **E**xperience and **P**romotions (ECEP herein) is a mod that allows a unit to continue to receive combat experience when it has a promotion pending.
+**E**nhanced **C**ombat **E**xperience and **P**romotions (**ECEP** herein) is a mod that allows a unit to continue to receive combat experience when it has a promotion pending.
 
 # Features
 ECEP utilizes custom ingame Player and Unit properties. Together, these properties allow any valid unit to receive (more) combat experience in some situations where it otherwise would receive less or none at all. Specifically:
@@ -26,7 +26,7 @@ ECEP will consider the following when the other combatant is a unit:
 - The combat strength of the enemy unit `(e)`
 - An immediate base XP multiplier `(k)` equal to `1`; if the target is the attacker and the enemy is dead, then instead `k = 2` (or whatever the game-defined value is, if different)
 - An amount of bonus XP `(b)` equal to the sum of any applicable flat bonus amounts, such as those for the attacking unit and for specific combat types
-- A modifier `(m)` equal to `1.M`, where `M` is the sum of any applicable non-difficulty percentage modifiers, including but not necessarily limited to those from 
+- A modifier `(m)` equal to `(100 + M) / 100`, where `M` is the sum of any applicable non-difficulty percentage modifiers, including but not necessarily limited to those from 
     - civilization traits
     - unit abilities
     - active governments
@@ -64,7 +64,8 @@ Sometimes, when the game provides zero experience, it actually means zero experi
 Ingame effects that instantly provide a unit its "next" promotion provide a variable amount of experience depending on the amount required for that unit's next promotion. Due to the way the game handles these effects, no experience will be provided if the unit has a promotion pending. ECEP currently does not affect any such experience in any way.
 
 # Misconceptions and Quirks
-Regarding difficulty modifiers, the relevant database value for low difficulty is negative. ECEP does not alter this value in any way. This means that on lower difficulties, the (major) AI players are actually earning less experience, rather than the human player earning more. Since the difficulty modifier only applies to major AI players, this also means that on lower difficulties, major AI players earn less experience than city-states.
+- Regarding difficulty modifiers, the relevant database value for low difficulty is negative. ECEP does not alter this value in any way. This means that on lower difficulties, the (major) AI players are actually earning less experience, rather than the human player earning more. Since the difficulty modifier only applies to major AI players, this also means that on lower difficulties, major AI players earn less experience than city-states.
+- Combat experience is not affected by game speed.
 
 # Localization
 ECEP's changes to ingame text involve little beyond altering the Unit Panel to reflect any banked experience in addition to the actual value, which should be accurately reflected regardless of the language in use.
