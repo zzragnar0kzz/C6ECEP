@@ -55,13 +55,10 @@ For human and minor AI players, there are no further calculations. For major AI 
 Caps are NOT enforced when a city or district is involved in the combat, so every XP calculated is an XP awarded.
 
 # Limitations
-ECEP __DOES NOT__ OPERATE IN REAL TIME! It cannot operate until it has been provided combat results by the gamecore. If multiple combats involving the same unit occur in rapid succession, it is possible that several of them will have concluded __BEFORE__ ECEP has received the results of the first. If that unit dies, it is possible that it will have been removed from the game __BEFORE__ ECEP gets a chance to act on it. ECEP will attempt to anticipate this and act accordingly.
-
-ECEP's combat experience formula is close, but it is still only an approximation. The practical effect of this is that amounts calculated by ECEP may be slightly greater than or less than any amounts that would have been provided by the game in a similar circumstance.
-
-Sometimes, when the game provides zero experience, it actually means zero experience. ECEP does not provide combat experience in cases where the game never does.
-
-Ingame effects that instantly provide a unit its "next" promotion provide a variable amount of experience depending on the amount required for that unit's next promotion. Due to the way the game handles these effects, no experience will be provided if the unit has a promotion pending. ECEP currently does not affect any such experience in any way.
+- ECEP __DOES NOT__ OPERATE IN REAL TIME! It cannot operate until it has been provided combat results by the gamecore. If multiple combats involving the same unit occur in rapid succession, it is possible that several of them will have concluded __BEFORE__ ECEP has received the results of the first. If that unit dies, it is possible that it will have been removed from the game __BEFORE__ ECEP gets a chance to act on it. ECEP will attempt to anticipate this and act accordingly.
+- ECEP's combat experience formula is close, but it is still only an approximation. The practical effect of this is that amounts calculated by ECEP may be slightly greater than or less than any amounts that would have been provided by the game in a similar circumstance.
+- Sometimes, when the game provides zero experience, it actually means zero experience. ECEP does not provide combat experience in cases where the game never does.
+- Ingame effects that instantly provide a unit its "next" promotion provide a variable amount of experience depending on the amount required for that unit's next promotion. Due to the way the game handles these effects, no experience will be provided if the unit has a promotion pending. ECEP currently does not affect any such experience in any way.
 
 # Misconceptions and Quirks
 - Regarding difficulty modifiers, the relevant database value for low difficulty is negative. ECEP does not alter this value in any way. This means that on lower difficulties, the (major) AI players are actually earning less experience, rather than the human player earning more. Since the difficulty modifier only applies to major AI players, this also means that on lower difficulties, major AI players earn less experience than city-states.
