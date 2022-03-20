@@ -2,7 +2,7 @@
 ![ECEP Ingame](/IMAGES/ECEP_Ingame.png)
 
 # Overview
-__E__ nhanced __C__ ombat __E__ xperience and __P__ romotions (ECEP herein) is a mod that allows a unit to continue to receive combat experience when it has a promotion pending.
+**E**nhanced **C**ombat **E**xperience and **P**romotions (ECEP herein) is a mod that allows a unit to continue to receive combat experience when it has a promotion pending.
 
 # Features
 ECEP utilizes custom ingame Player and Unit properties. Together, these properties allow any valid unit to receive (more) combat experience in some situations where it otherwise would receive less or none at all. Specifically:
