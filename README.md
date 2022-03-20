@@ -43,7 +43,7 @@ For human and minor AI players, there are no further calculations. For major AI 
 Finally, if the calculated value exceeds any defined experience caps, it will be reset as appropriate.
 
 ### City/District
-If the other combatant is a city or district, most of the factors identified above will be disregarded. Base experience (e) provided varies:
+If the other combatant is a city or district, factors (t), (e), (k), and (b) identified above will be disregarded. Factors (m) and (d) above will be considered. Base experience (e) provided here varies:
 
 - For City/District vs Unit (defending), e = a game-defined value (default 2)
 - For Unit (attacking) vs City/District, e = a game-defined value (default 3). If the attack results in a captured city, then instead e = a different game-defined value (default 10)
