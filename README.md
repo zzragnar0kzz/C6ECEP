@@ -17,7 +17,7 @@ When the game does not provide an experience value and ECEP must calculate one, 
 ## How It Works
 The game is inconsistent with how it internally handles combat experience awards. If a unit survives, is eligible for combat experience, and was below its current level cap prior to combat, the game will provide a combat experience value for that unit. It does this even if the unit belongs to the Barbarian player, whose units never promote (testing shows that most Barbarian units DO in fact have an experience total, but it never changes). This is annoying, but simple enough to account for and work around.
 
-This changes if the unit was at its current level cap prior to combat. Rather than providing a value and simply disregarding it, as it seems to do with Barbarian units, the game will instead provide a value of zero experience. When this happens, ECEP will attempt to calculate the amount of experience that should have been provided to the unit. The manner in which it does this varies depending on the other combatant.
+This changes if the unit was at its current level cap prior to combat. Rather than providing a value and simply disregarding it, as it seems to do with Barbarian units, the game will instead provide a value of zero experience, even when the unit survives and is otherwise eligible for experience. When this happens, ECEP will attempt to calculate the amount of experience that should have been provided to the unit. The manner in which it does this varies depending on the other combatant.
 
 ### Unit
 ECEP will consider the following when the other combatant is a unit: 
@@ -61,8 +61,9 @@ Caps are NOT enforced when a city or district is involved in the combat, so ever
 - Ingame effects that instantly provide a unit its "next" promotion provide a variable amount of experience depending on the amount required for that unit's next promotion. Due to the way the game handles these effects, no experience will be provided if the unit has a promotion pending. ECEP currently does not affect any such experience in any way.
 
 # Misconceptions and Quirks
-- Regarding difficulty modifiers, the relevant database value for low difficulty is negative. ECEP does not alter this value in any way. This means that on lower difficulties, the (major) AI players are actually earning less experience, rather than the human player earning more. Since the difficulty modifier only applies to major AI players, this also means that on lower difficulties, major AI players earn less experience than city-states.
+- Regarding difficulty modifiers, the relevant database value for low difficulty is, by default, a negative integer. ECEP does not alter this value in any way. This means that on lower difficulties, the (major) AI players are actually earning less experience, rather than the human player(s) earning more. Since the difficulty modifier only applies to major AI players, this also means that on lower difficulties, major AI players earn less experience than city-states.
 - Combat experience is not affected by game speed.
+- Since banked experience is stored separately from actual experience, the game interprets a balance transfer as an XP-changing event and reacts accordingly. When a unit with banked combat experience is promoted, human players will receive a pop-up notification when any banked experience is applied to the unit's actual experience total. This is a visual side-effect of the methods used to reset the unit's true experience total, and should not be interpreted by the player as an additional XP grant.
 
 # Localization
 ECEP's changes to ingame text involve little beyond altering the Unit Panel to reflect any banked experience in addition to the actual value, which should be accurately reflected regardless of the language in use.
