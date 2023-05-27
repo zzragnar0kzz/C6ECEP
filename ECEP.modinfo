@@ -96,6 +96,13 @@
 				<LuaReplace>ECEP/UI/Replacements/UnitPanel_ECEP_Expansion2.lua</LuaReplace>
 			</Properties>
 		</ReplaceUIScript>
+		<!-- gameplay database config for all rulesets -->
+		<UpdateDatabase id="ECEP_INGAME" criteria="ECEP">
+			<Properties>
+        		<LoadOrder>1010150</LoadOrder>
+      		</Properties>
+			<File Priority="2">ECEP/Gameplay/Ingame.sql</File>
+		</UpdateDatabase>
         <ImportFiles id="ECEP_Files" criteria="ECEP">
             <!-- ECEP government screen files -->
             <File>ECEP/UI/Replacements/GovernmentScreen.lua</File>
@@ -140,6 +147,8 @@
         <File>ECEP/Scripts/ECEP.lua</File>
         <!-- ECEP government screen files -->
         <File>ECEP/UI/Replacements/GovernmentScreen.lua</File>
+		<!-- -->
+		<File>ECEP/Gameplay/Ingame.sql</File>
         <!-- <File>ECEP/UI/Replacements/GovernmentScreen_ECEP.lua</File> -->
         <!-- <File>ECEP/UI/Replacements/GovernmentScreen_ECEP_Expansion1.lua</File> -->
         <!-- <File>ECEP/UI/Replacements/GovernmentScreen_ECEP_Expansion2.lua</File> -->
